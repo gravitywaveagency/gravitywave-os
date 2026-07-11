@@ -220,6 +220,8 @@ tr:hover td { background: rgba(123,92,229,0.06); }
 /* ── CHARTS ── */
 .chart-container { position: relative; width: 100%; }
 canvas { max-width: 100%; }
+.svg-chart { width: 100%; }
+.svg-chart svg { width: 100%; height: auto; display: block; }
 
 /* ── ACTIVITY FEED ── */
 .activity-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
@@ -449,7 +451,7 @@ canvas { max-width: 100%; }
       <div class="grid grid-2">
         <div class="card">
           <div class="card-title">📈 Revenue — 6 meses</div>
-          <div class="chart-container"><canvas id="revenueChart" height="180"></canvas></div>
+          <div class="chart-container"><div id="revenueChart" class="svg-chart"></div></div>
         </div>
         <div class="card">
           <div class="card-title">⚡ Growth System™ — Estado</div>
@@ -520,17 +522,17 @@ canvas { max-width: 100%; }
       <div class="grid grid-2 mb-16">
         <div class="card">
           <div class="card-title">📊 Ingresos vs Gastos</div>
-          <div class="chart-container"><canvas id="finRevenueChart" height="200"></canvas></div>
+          <div class="chart-container"><div id="finRevenueChart" class="svg-chart"></div></div>
         </div>
         <div class="card">
           <div class="card-title">🍰 Composición de Ingresos</div>
-          <div class="chart-container"><canvas id="finPieChart" height="200"></canvas></div>
+          <div class="chart-container"><div id="finPieChart" class="svg-chart"></div></div>
         </div>
       </div>
       <div class="grid grid-2 mb-16">
         <div class="card">
           <div class="card-title">💹 Margen Neto Mensual</div>
-          <div class="chart-container"><canvas id="finMarginChart" height="180"></canvas></div>
+          <div class="chart-container"><div id="finMarginChart" class="svg-chart"></div></div>
         </div>
         <div class="card">
           <div class="card-title">💰 Ingresos por Cliente</div>
@@ -821,7 +823,7 @@ canvas { max-width: 100%; }
 </div>
 
 <!-- CHARTS CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Sin dependencias externas: las gráficas se dibujan con SVG nativo (100% offline) -->
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -1003,9 +1005,69 @@ function addActivityToClient(cid, type, text) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  GRÁFICAS SVG (sin dependencias — 100% offline)
+// ═══════════════════════════════════════════════════════
+function niceMax(v){ if(v<=0) return 10; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; const m=n<=1?1:n<=2?2:n<=5?5:10; return m*p; }
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function svgLine(id, labels, data, opts){
+  opts=opts||{}; const host=document.getElementById(id); if(!host) return;
+  const W=600, H=opts.h||180;
+  const mL=52,mR=14,mT=14,mB=26, x0=mL,x1=W-mR,y0=mT,y1=H-mB;
+  const color=opts.color||'#7B5CE5', fill=opts.fill||'rgba(123,92,229,0.12)', unit=opts.unit||'$', pct=opts.pct;
+  const max=niceMax(Math.max(...data,1)), n=data.length;
+  const xAt=i=> n>1 ? x0+(x1-x0)*i/(n-1) : (x0+x1)/2;
+  const yAt=v=> y1-(y1-y0)*(v/max);
+  const fmtV=v=> pct ? v+'%' : unit+Number(v).toLocaleString();
+  let grid=''; const gl=4;
+  for(let g=0; g<=gl; g++){ const v=max*g/gl, y=yAt(v);
+    grid+=`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="rgba(240,236,255,0.06)"/>`;
+    grid+=`<text x="${x0-8}" y="${y+3}" text-anchor="end" fill="#6B5F99" font-size="10">${fmtV(v)}</text>`; }
+  let xl=''; labels.forEach((l,i)=>{ xl+=`<text x="${xAt(i)}" y="${H-8}" text-anchor="middle" fill="#6B5F99" font-size="10">${esc(l)}</text>`; });
+  const area=`M ${xAt(0)},${y1} `+data.map((v,i)=>`L ${xAt(i)},${yAt(v)}`).join(' ')+` L ${xAt(n-1)},${y1} Z`;
+  const pts=data.map((v,i)=>`${xAt(i)},${yAt(v)}`).join(' ');
+  const dots=data.map((v,i)=>`<circle cx="${xAt(i)}" cy="${yAt(v)}" r="3" fill="${color}" stroke="#0E0A1F" stroke-width="1.5"/>`).join('');
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"><path d="${area}" fill="${fill}"/>${grid}<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${xl}</svg>`;
+}
+
+function svgBars(id, labels, series, opts){
+  opts=opts||{}; const host=document.getElementById(id); if(!host) return;
+  const W=600, H=opts.h||200, unit=opts.unit||'$';
+  const mL=52,mR=14,mT=14,mB=26, x0=mL,x1=W-mR,y0=mT,y1=H-mB;
+  const max=niceMax(Math.max(...series.flatMap(s=>s.data),1));
+  const yAt=v=> y1-(y1-y0)*(v/max);
+  const n=labels.length, ns=series.length, slot=(x1-x0)/n, gap=slot*0.28, bw=(slot-gap)/ns;
+  let grid=''; const gl=4;
+  for(let g=0; g<=gl; g++){ const v=max*g/gl, y=yAt(v);
+    grid+=`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="rgba(240,236,255,0.06)"/>`;
+    grid+=`<text x="${x0-8}" y="${y+3}" text-anchor="end" fill="#6B5F99" font-size="10">${unit}${Number(v).toLocaleString()}</text>`; }
+  let bars='';
+  for(let i=0;i<n;i++){ const sx=x0+slot*i+gap/2;
+    series.forEach((s,j)=>{ const v=s.data[i]||0, y=yAt(v), h=Math.max(0,y1-y);
+      bars+=`<rect x="${sx+bw*j}" y="${y}" width="${Math.max(0,bw-2)}" height="${h}" rx="2" fill="${s.color}"/>`; }); }
+  let xl=''; labels.forEach((l,i)=>{ xl+=`<text x="${x0+slot*i+slot/2}" y="${H-8}" text-anchor="middle" fill="#6B5F99" font-size="10">${esc(l)}</text>`; });
+  const legend=series.map(s=>`<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#A89FCC"><span style="width:10px;height:10px;border-radius:2px;background:${s.color}"></span>${esc(s.label)}</span>`).join('');
+  host.innerHTML=`<div style="display:flex;gap:14px;justify-content:center;margin-bottom:6px">${legend}</div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${grid}${bars}${xl}</svg>`;
+}
+
+function svgDonut(id, labels, data, colors){
+  const host=document.getElementById(id); if(!host) return;
+  const total=data.reduce((a,b)=>a+b,0);
+  const S=180, r=62, cx=S/2, cy=S/2, sw=26, C=2*Math.PI*r;
+  let segs='', off=0;
+  data.forEach((v,i)=>{ const len=(total>0?v/total:0)*C;
+    segs+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="${sw}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    off+=len; });
+  const center=`<text x="${cx}" y="${cy-2}" text-anchor="middle" fill="#F0ECFF" font-size="22" font-weight="700">${data.length}</text><text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#6B5F99" font-size="11">clientes</text>`;
+  const ring=total>0?segs:`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#231850" stroke-width="${sw}"/>`;
+  const svg=`<svg viewBox="0 0 ${S} ${S}" style="width:148px;height:148px;flex:none" role="img">${ring}${center}</svg>`;
+  const legend=labels.length? labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#A89FCC;margin:3px 0"><span style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]};flex:none"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l)}</span><span style="margin-left:auto;color:#6B5F99">${total>0?Math.round(data[i]/total*100):0}%</span></div>`).join('') : '<div style="color:#6B5F99;font-size:12px">Sin clientes activos</div>';
+  host.innerHTML=`<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div>${svg}</div><div style="flex:1;min-width:130px">${legend}</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════
 //  DASHBOARD
 // ═══════════════════════════════════════════════════════
-let dashChartInst = null;
 function renderDashboard() {
   const mrr = getTotalMRR();
   const active = getActiveClients().length;
@@ -1020,21 +1082,8 @@ function renderDashboard() {
     <div class="stat-card"><div class="stat-label">Margen Neto</div><div class="stat-value">${margin}%</div><div class="stat-sub"><span class="stat-badge ${margin>60?'badge-green':margin>40?'badge-yellow':'badge-red'}">${margin>60?'Saludable':margin>40?'Moderado':'Ajustado'}</span></div></div>
   `;
 
-  // Revenue chart
-  const ctx = document.getElementById('revenueChart').getContext('2d');
-  if (dashChartInst) dashChartInst.destroy();
-  dashChartInst = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ['Dic','Ene','Feb','Mar','Abr','May'],
-      datasets: [{
-        label: 'MRR', data: state.monthlyRevenue,
-        borderColor: '#7B5CE5', backgroundColor: 'rgba(123,92,229,0.1)',
-        tension: 0.4, fill: true, pointBackgroundColor: '#C4B0F5'
-      }]
-    },
-    options: { responsive:true, plugins:{legend:{display:false}}, scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6B5F99'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6B5F99',callback:v=>'$'+v.toLocaleString()}}} }
-  });
+  // Revenue chart (SVG nativo)
+  svgLine('revenueChart', ['Dic','Ene','Feb','Mar','Abr','May'], state.monthlyRevenue, { color:'#7B5CE5', fill:'rgba(123,92,229,0.12)', h:180 });
 
   // Growth status
   let gsHtml = '';
@@ -1520,7 +1569,6 @@ async function sendGmailMessage() {
 // ═══════════════════════════════════════════════════════
 //  FINANZAS
 // ═══════════════════════════════════════════════════════
-let finCharts = {};
 function renderFinanzas() {
   const mrr = getTotalMRR();
   const exp = getTotalExpenses();
@@ -1538,37 +1586,19 @@ function renderFinanzas() {
   const revData = state.monthlyRevenue;
   const expData = state.monthlyExpenses;
 
-  // Rev vs Exp chart
-  if (finCharts.revExp) finCharts.revExp.destroy();
-  finCharts.revExp = new Chart(document.getElementById('finRevenueChart').getContext('2d'), {
-    type:'bar',
-    data:{ labels:months, datasets:[
-      { label:'Ingresos', data:revData, backgroundColor:'rgba(123,92,229,0.7)', borderColor:'#7B5CE5', borderWidth:1 },
-      { label:'Gastos', data:expData, backgroundColor:'rgba(232,89,60,0.5)', borderColor:'#E8593C', borderWidth:1 }
-    ]},
-    options:{ responsive:true, plugins:{legend:{labels:{color:'#A89FCC',font:{size:11}}}}, scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6B5F99'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6B5F99',callback:v=>'$'+v.toLocaleString()}}} }
-  });
+  // Ingresos vs Gastos (SVG nativo)
+  svgBars('finRevenueChart', months, [
+    { label:'Ingresos', data:revData, color:'#7B5CE5' },
+    { label:'Gastos', data:expData, color:'#E8593C' }
+  ], { h:200 });
 
-  // Pie chart by client
+  // Distribución de MRR por cliente (SVG nativo)
   const activeClients = getActiveClients();
-  if (finCharts.pie) finCharts.pie.destroy();
-  finCharts.pie = new Chart(document.getElementById('finPieChart').getContext('2d'), {
-    type:'doughnut',
-    data:{
-      labels: activeClients.map(c=>c.name),
-      datasets:[{ data: activeClients.map(c=>c.mrr), backgroundColor:['#7B5CE5','#7FDEC4','#C5E055','#E8593C','#C4B0F5'], borderWidth:0 }]
-    },
-    options:{ responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#A89FCC',font:{size:11},padding:12}}} }
-  });
+  svgDonut('finPieChart', activeClients.map(c=>c.name), activeClients.map(c=>c.mrr), ['#7B5CE5','#7FDEC4','#C5E055','#E8593C','#C4B0F5']);
 
-  // Margin chart
+  // Margen % (SVG nativo)
   const margins = revData.map((r,i) => expData[i] ? Math.round((r-expData[i])/r*100) : 0);
-  if (finCharts.margin) finCharts.margin.destroy();
-  finCharts.margin = new Chart(document.getElementById('finMarginChart').getContext('2d'), {
-    type:'line',
-    data:{ labels:months, datasets:[{ label:'Margen %', data:margins, borderColor:'#7FDEC4', backgroundColor:'rgba(127,222,196,0.1)', tension:0.4, fill:true, pointBackgroundColor:'#7FDEC4' }]},
-    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6B5F99'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6B5F99',callback:v=>v+'%'}}} }
-  });
+  svgLine('finMarginChart', months, margins, { color:'#7FDEC4', fill:'rgba(127,222,196,0.12)', pct:true, h:180 });
 
   // Client revenue table
   document.getElementById('clientRevTable').innerHTML = `
