@@ -715,7 +715,10 @@ canvas { max-width: 100%; }
           <div class="page-title">Observation Journal</div>
           <div class="page-sub italic">Captura sin fricción · menos de 2 minutos</div>
         </div>
-        <div class="text-xs text-muted" id="journalQuickCount"></div>
+        <div class="flex gap-8" style="align-items:center;">
+          <span class="text-xs text-muted" id="journalQuickCount"></span>
+          <button class="btn btn-ghost btn-sm" onclick="exportAllObservationsMarkdown()" title="Exportar todas las observaciones a Markdown (corpus listo para Drive)">⬇ Exportar .md</button>
+        </div>
       </div>
 
       <div class="grid grid-2 mb-16" style="grid-template-columns: 1.1fr 1fr; align-items:start;">
@@ -1120,8 +1123,12 @@ canvas { max-width: 100%; }
       <div class="modal-title" id="analysisModalTitle">Análisis IA</div>
       <button class="modal-close" onclick="closeModal('analysisModal')">✕</button>
     </div>
-    <div class="modal-body" id="analysisBody"></div>
+    <div class="modal-body">
+      <div id="analysisBody"></div>
+      <div id="suggestBox"></div>
+    </div>
     <div class="modal-footer">
+      <button class="btn btn-mint" onclick="suggestRecordsAI()">🔖 Sugerir patrones e hipótesis</button>
       <button class="btn btn-ghost" onclick="closeModal('analysisModal')">Cerrar</button>
     </div>
   </div>
@@ -2828,6 +2835,8 @@ async function analyzeSystemAI(projectId) {
   const obs = getObservationsByProject(projectId);
   if (!obs.length) { alert('Este sistema aún no tiene observaciones. Captura al menos una en el Journal.'); return; }
 
+  currentAnalysisProjectId = projectId;
+  document.getElementById('suggestBox').innerHTML = '';
   document.getElementById('analysisModalTitle').textContent = `🔮 Análisis IA — ${p.name}`;
   const body = document.getElementById('analysisBody');
   openModal('analysisModal');
@@ -2875,6 +2884,117 @@ async function analyzeSystemAI(projectId) {
   } catch (e) {
     body.innerHTML = '<div style="color:var(--coral)">Error de conexión. Verifica tu API Key y tu conexión a internet.</div>';
   }
+}
+
+// ── IA → REGISTROS: sugerir patrones e hipótesis desde el análisis ──
+let currentAnalysisProjectId = null;
+let aiSuggestions = null;
+
+async function suggestRecordsAI() {
+  const projectId = currentAnalysisProjectId; if (projectId == null) return;
+  const p = getProjectById(projectId); if (!p) return;
+  const obs = getObservationsByProject(projectId); if (!obs.length) return;
+  const box = document.getElementById('suggestBox');
+  const key = getApiKey();
+  if (!key) { box.innerHTML = '<div style="color:var(--coral);margin-top:12px;">Agrega tu API Key de Claude para generar sugerencias.</div>'; return; }
+  box.innerHTML = '<div class="text-muted text-sm" style="margin-top:12px;"><div class="typing"><span></span><span></span><span></span></div> Generando patrones e hipótesis sugeridos...</div>';
+
+  const obsText = obs.map((o, i) => {
+    let s = `Observación ${i+1} (${o.phase||'sin fase'}): ${o.observed}`;
+    if (o.behavior) s += ` | comportamiento: ${o.behavior}`;
+    if (o.surprise) s += ` | sorpresa: ${o.surprise}`;
+    if (o.system) s += ` | sistema probable: ${o.system}`;
+    if (o.question) s += ` | pregunta: ${o.question}`;
+    return s;
+  }).join('\n');
+  const sysContext = `Sistema: "${p.name}"${p.systemType ? ` (${p.systemType})` : ''}.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 1200,
+        system: 'Eres analista de Gravity Wave Agency. A partir de observaciones de campo, propones patrones (2+ observaciones que apuntan a lo mismo) e hipótesis falsables. Responde EXCLUSIVAMENTE con JSON válido, en español, sin texto adicional ni bloques de código. No inventes: solo lo que la evidencia sostenga.',
+        messages: [{ role: 'user', content: `${sysContext}\n\nObservaciones:\n${obsText}\n\nDevuelve este formato JSON exacto (máximo 3 de cada uno):\n{"patterns":[{"name":"...","description":"..."}],"hypotheses":[{"statement":"...","evidenceFor":["..."],"evidenceAgainst":["..."]}]}` }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) { box.innerHTML = `<div style="color:var(--coral);margin-top:12px;">Error del API: ${esc(data.error.message||'desconocido')}</div>`; return; }
+    let txt = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+    txt = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(txt); } catch (e) { box.innerHTML = '<div style="color:var(--coral);margin-top:12px;">No pude interpretar las sugerencias. Intenta de nuevo.</div>'; return; }
+    renderSuggestions(parsed, projectId);
+  } catch (e) {
+    box.innerHTML = '<div style="color:var(--coral);margin-top:12px;">Error de conexión. Verifica tu API Key.</div>';
+  }
+}
+
+function renderSuggestions(parsed, projectId) {
+  const box = document.getElementById('suggestBox');
+  const pats = Array.isArray(parsed.patterns) ? parsed.patterns : [];
+  const hyps = Array.isArray(parsed.hypotheses) ? parsed.hypotheses : [];
+  aiSuggestions = { pats, hyps, projectId };
+  let html = '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px;"><div class="card-title" style="margin-bottom:6px;">🔖 Sugerencias — revisa antes de guardar</div>';
+  if (pats.length) {
+    html += '<div class="text-xs text-muted" style="margin:8px 0 4px;">Patrones</div>';
+    html += pats.map((p, i) => `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div class="flex-between" style="align-items:flex-start;gap:8px;"><strong class="text-sm">${esc(p.name||'(sin nombre)')}</strong>
+      <button class="btn btn-mint btn-xs" style="flex:none;" onclick="saveSuggestedPattern(${i})">➕ Guardar</button></div>
+      <div class="text-xs text-muted">${esc(p.description||'')}</div></div>`).join('');
+  }
+  if (hyps.length) {
+    html += '<div class="text-xs text-muted" style="margin:12px 0 4px;">Hipótesis</div>';
+    html += hyps.map((h, i) => `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div class="flex-between" style="align-items:flex-start;gap:8px;"><span class="text-sm">${esc(h.statement||'')}</span>
+      <button class="btn btn-mint btn-xs" style="flex:none;" onclick="saveSuggestedHypothesis(${i})">➕ Guardar</button></div></div>`).join('');
+  }
+  if (!pats.length && !hyps.length) html += '<div class="text-muted text-sm">La IA no sugirió registros (evidencia insuficiente todavía).</div>';
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function saveSuggestedPattern(i) {
+  if (!aiSuggestions) return; const p = aiSuggestions.pats[i]; if (!p) return;
+  const obsIds = getObservationsByProject(aiSuggestions.projectId).map(o => o.id);
+  const projIds = [...new Set(obsIds.map(id => { const o = state.observations.find(x => x.id == id); return o ? o.projectId : null; }).filter(Boolean))];
+  state.patterns.push({ id: state.nextId++, name: p.name || 'Patrón sin nombre', description: p.description || '', status: 'emergente', observationIds: obsIds, projectIds: projIds, detectedAt: new Date().toISOString() });
+  saveState();
+  alert('✓ Patrón guardado (estado: emergente, con las observaciones del sistema vinculadas). Revísalo en “Patrones”.');
+}
+
+function saveSuggestedHypothesis(i) {
+  if (!aiSuggestions) return; const h = aiSuggestions.hyps[i]; if (!h) return;
+  state.hypotheses.push({ id: state.nextId++, statement: h.statement || '', patternId: null, status: 'activa',
+    evidenceFor: Array.isArray(h.evidenceFor) ? h.evidenceFor : [], evidenceAgainst: Array.isArray(h.evidenceAgainst) ? h.evidenceAgainst : [],
+    date: new Date().toISOString(), resolvedAt: null });
+  saveState();
+  alert('✓ Hipótesis guardada (estado: activa). Revísala en “Hipótesis”.');
+}
+
+// ── Export masivo a Markdown (corpus listo para Drive) ──
+function exportAllObservationsMarkdown() {
+  if (!state.observations.length) { alert('No hay observaciones para exportar todavía.'); return; }
+  const byProj = {};
+  state.observations.forEach(o => { (byProj[o.projectId] = byProj[o.projectId] || []).push(o); });
+  let md = `# Observatorio — Gravity Wave\n\nExportado: ${new Date().toLocaleString('es-PR')}\nTotal: ${state.observations.length} observación(es) · ${Object.keys(byProj).length} sistema(s)\n`;
+  Object.keys(byProj).forEach(pid => {
+    const pr = getProjectById(pid);
+    md += `\n---\n\n# Sistema: ${pr ? pr.name : '(desconocido)'}${pr && pr.systemType ? ` (${pr.systemType})` : ''}\n`;
+    byProj[pid].slice().sort((a, b) => new Date(a.createdAt||a.date) - new Date(b.createdAt||b.date)).forEach(o => {
+      md += `\n## ${new Date(o.createdAt||o.date).toLocaleDateString('es-PR')}${o.phase ? ` · ${o.phase}` : ''}\n${o.observed}\n`;
+      if (o.behavior) md += `\n**Comportamiento:** ${o.behavior}\n`;
+      if (o.surprise) md += `\n**Sorpresa / no encajó:** ${o.surprise}\n`;
+      if (o.system) md += `\n**Sistema probable:** ${o.system}\n`;
+      if (o.question) md += `\n**Pregunta:** ${o.question}\n`;
+      if (o.tags && o.tags.length) md += `\n_Tags: ${o.tags.map(t => '#'+t).join(' ')}_\n`;
+    });
+  });
+  const blob = new Blob([md], { type:'text/markdown' });
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = `observatorio_${new Date().toISOString().split('T')[0]}.md`; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── FASE 2: PATRONES / HIPÓTESIS / EXPERIMENTOS ──
