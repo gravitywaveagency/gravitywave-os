@@ -397,6 +397,13 @@ canvas { max-width: 100%; }
     <div class="nav-item" onclick="showPage('clientes',this)">
       <span class="icon">◉</span> Clientes
     </div>
+    <div class="nav-label">Observatorio</div>
+    <div class="nav-item" onclick="showPage('journal',this)">
+      <span class="icon">◐</span> Journal
+    </div>
+    <div class="nav-item" onclick="showPage('sistemas',this)">
+      <span class="icon">⬡</span> Sistemas
+    </div>
     <div class="nav-label">Gestión</div>
     <div class="nav-item" onclick="showPage('finanzas',this)">
       <span class="icon">◎</span> Finanzas
@@ -454,6 +461,11 @@ canvas { max-width: 100%; }
         <div class="page-sub italic">keeping your business in orbit</div>
       </div>
       <div class="grid grid-4 mb-16" id="dashStats"></div>
+      <div class="flex-between mb-12" style="align-items:baseline;">
+        <div class="card-title" style="margin-bottom:0">🔭 Observatorio — Aprendizaje</div>
+        <div class="text-xs text-muted italic">observación → prospecto → cliente → caso de estudio</div>
+      </div>
+      <div class="grid grid-4 mb-16" id="dashResearchStats"></div>
       <div class="grid grid-2">
         <div class="card">
           <div class="card-title">📈 Revenue — 6 meses</div>
@@ -685,6 +697,126 @@ canvas { max-width: 100%; }
       <div class="grid grid-2" id="docsGrid"></div>
     </div>
 
+    <!-- ═══════════════════════════════════════
+         OBSERVATION JOURNAL
+    ═══════════════════════════════════════ -->
+    <div id="page-journal" class="page">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">Observation Journal</div>
+          <div class="page-sub italic">Captura sin fricción · menos de 2 minutos</div>
+        </div>
+        <div class="text-xs text-muted" id="journalQuickCount"></div>
+      </div>
+
+      <div class="grid grid-2 mb-16" style="grid-template-columns: 1.1fr 1fr; align-items:start;">
+        <!-- Captura -->
+        <div class="card" style="border-color: rgba(123,92,229,0.35);">
+          <div class="card-title">✍️ Nueva observación</div>
+          <div class="form-group">
+            <label class="form-label">Sistema / Proyecto *</label>
+            <div class="flex gap-8">
+              <select id="obsProject" class="form-select" style="flex:1"></select>
+              <button class="btn btn-ghost btn-sm" onclick="openNewProjectModal()" title="Crear un sistema nuevo">+ Sistema</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">¿Qué observé? *</label>
+            <textarea id="obsObserved" class="form-textarea" rows="3" placeholder="Describe lo que viste, sin filtrar ni concluir todavía..."></textarea>
+          </div>
+          <details class="obs-more">
+            <summary class="text-sm" style="cursor:pointer; color:var(--pl); margin:4px 0 12px;">+ Añadir contexto (opcional)</summary>
+            <div class="form-group">
+              <label class="form-label">Fase</label>
+              <select id="obsPhase" class="form-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">¿Qué comportamiento noté?</label>
+              <textarea id="obsBehavior" class="form-textarea" rows="2" placeholder="Acciones, reacciones, patrones de conducta..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">¿Qué me sorprendió o no encajó?</label>
+              <textarea id="obsSurprise" class="form-textarea" rows="2" placeholder="Lo inesperado suele ser la señal más valiosa..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">¿Qué sistema podría estar produciendo esto?</label>
+              <textarea id="obsSystem" class="form-textarea" rows="2" placeholder="Hipótesis de estructura, incentivos, dinámicas..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">¿Qué pregunta me llevo?</label>
+              <textarea id="obsQuestion" class="form-textarea" rows="2" placeholder="La pregunta que queda abierta..."></textarea>
+            </div>
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label class="form-label">Tags</label>
+                <input type="text" id="obsTags" class="form-input" placeholder="onboarding, fricción, confianza">
+                <div class="text-xs text-muted mt-8">Separa con comas</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Estado emocional al capturar</label>
+                <select id="obsMood" class="form-select"></select>
+              </div>
+            </div>
+          </details>
+          <div class="flex-between" style="align-items:center;">
+            <span id="obsSaveFeedback" class="text-xs" style="color:var(--mint)"></span>
+            <button class="btn btn-primary" onclick="saveObservation()">Guardar observación</button>
+          </div>
+        </div>
+
+        <!-- Filtros + resumen -->
+        <div class="card">
+          <div class="card-title">🔎 Filtrar</div>
+          <div class="form-group">
+            <label class="form-label">Sistema</label>
+            <select id="filterProject" class="form-select" onchange="renderJournalList()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fase</label>
+            <select id="filterPhase" class="form-select" onchange="renderJournalList()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Buscar (texto o #tag)</label>
+            <input type="text" id="filterText" class="form-input" placeholder="Buscar en observaciones..." oninput="renderJournalList()">
+          </div>
+          <button class="btn btn-ghost btn-sm w-100" onclick="clearJournalFilters()">Limpiar filtros</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗒️ Observaciones</div>
+        <div id="journalList"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SISTEMAS (Research Projects)
+    ═══════════════════════════════════════ -->
+    <div id="page-sistemas" class="page">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">Sistemas bajo Observación</div>
+          <div class="page-sub italic">Cada sistema es un proyecto de estudio · puede graduar a prospecto</div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="renderSistemas()">↻ Actualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ Nuevo Sistema</button>
+        </div>
+      </div>
+      <div class="grid grid-4 mb-16" id="sistemasStats"></div>
+      <div class="card">
+        <div class="card-title">Todos los Sistemas</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Sistema</th><th>Tipo</th><th>Estado</th><th>Observaciones</th><th>Vínculo CRM</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="sistemasTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -747,6 +879,49 @@ canvas { max-width: 100%; }
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveClient()">Guardar Cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo/Editar Sistema (Research Project) -->
+<div class="modal-overlay" id="projectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="projectModalTitle">Nuevo Sistema</div>
+      <button class="modal-close" onclick="closeModal('projectModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Nombre del sistema *</label>
+          <input type="text" id="pName" class="form-input" placeholder="Ej: Onboarding de Café Orbita">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de sistema</label>
+          <input type="text" id="pType" class="form-input" placeholder="Empresa, flujo, comunidad, equipo...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de inicio</label>
+          <input type="date" id="pStart" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select id="pStatus" class="form-select">
+            <option value="activo">En observación</option>
+            <option value="pausado">Pausado</option>
+            <option value="archivado">Archivado</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea id="pNotes" class="form-textarea" placeholder="Contexto del sistema, cómo llegaste a él, hipótesis inicial..."></textarea>
+      </div>
+      <div class="text-xs text-muted" id="pLinkInfo"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('projectModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProject()">Guardar Sistema</button>
     </div>
   </div>
 </div>
@@ -880,7 +1055,21 @@ let state = {
   monthlyRevenue: [3200, 4100, 4500, 5200, 5700, 5700],
   monthlyExpenses: [900, 1100, 1050, 1200, 1019, 1019],
   nextId: 4,
-  reports: {}
+  reports: {},
+
+  // ── OBSERVATORIO / GRAVITY RESEARCH LAB ──
+  // Fase 1 activa: observations + researchProjects (con UI).
+  // Fase posterior (modelo listo, sin UI aún): patterns, hypotheses, experiments.
+  researchProjects: [],
+  // observation: { id, projectId, date, phase, observed, behavior, surprise,
+  //   system, question, tags:[], mood, audioUrl:'', transcription:'', tone:'', createdAt }
+  observations: [],
+  // pattern: { id, name, description, observationIds:[], projectIds:[], detectedAt, status }
+  patterns: [],
+  // hypothesis: { id, statement, patternId, date, status, evidenceFor:[], evidenceAgainst:[], resolvedAt }
+  hypotheses: [],
+  // experiment: { id, hypothesisId, design, measures, result, learning, newQuestion }
+  experiments: []
 };
 
 // Load from localStorage
@@ -949,10 +1138,21 @@ const EMAIL_TEMPLATES = [
 // ═══════════════════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════════════════
+const RESEARCH_PHASES = ['Discovery', 'Design', 'Build', 'Launch', 'Evaluate'];
+const MOODS = [
+  { v: '', label: '—' },
+  { v: '1', label: '😖 Tenso' },
+  { v: '2', label: '😕 Inquieto' },
+  { v: '3', label: '😐 Neutral' },
+  { v: '4', label: '🙂 Claro' },
+  { v: '5', label: '😄 Energizado' }
+];
+
 const PAGE_TITLES = {
   dashboard: 'Dashboard', clientes: 'Clientes', finanzas: 'Finanzas',
   growth: 'Growth System™', operaciones: 'Operaciones', marketing: 'Marketing',
-  ia: 'Análisis IA', tendencias: 'Tendencias', docs: 'Documentos'
+  ia: 'Análisis IA', tendencias: 'Tendencias', docs: 'Documentos',
+  journal: 'Observation Journal', sistemas: 'Sistemas'
 };
 let currentPage = 'dashboard';
 let currentProfileClientId = null;
@@ -974,6 +1174,8 @@ function showPage(id, el) {
   else if (id === 'ia') renderAIPage();
   else if (id === 'tendencias') renderTendencias();
   else if (id === 'docs') renderDocs();
+  else if (id === 'journal') renderJournal();
+  else if (id === 'sistemas') renderSistemas();
 }
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -1090,6 +1292,9 @@ function renderDashboard() {
 
   // Revenue chart (SVG nativo)
   svgLine('revenueChart', ['Dic','Ene','Feb','Mar','Abr','May'], state.monthlyRevenue, { color:'#7B5CE5', fill:'rgba(123,92,229,0.12)', h:180 });
+
+  // KPIs del Observatorio
+  renderResearchStats();
 
   // Growth status
   let gsHtml = '';
@@ -2154,6 +2359,275 @@ function importData(input) {
   reader.readAsText(file);
   input.value = '';
 }
+// ═══════════════════════════════════════════════════════
+//  OBSERVATORIO — GRAVITY RESEARCH LAB (Fase 1)
+// ═══════════════════════════════════════════════════════
+function getProjectById(id) { return state.researchProjects.find(p => p.id == id); }
+function getObservationsByProject(pid) { return state.observations.filter(o => o.projectId == pid); }
+function moodLabel(v) { const m = MOODS.find(x => x.v == String(v)); return m ? m.label : ''; }
+function moodEmoji(v) { const m = MOODS.find(x => x.v == String(v)); return m && m.v ? m.label.split(' ')[0] : ''; }
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-PR', { month:'short', day:'numeric' }) + ' · ' +
+         d.toLocaleTimeString('es-PR', { hour:'2-digit', minute:'2-digit' });
+}
+function projStatusBadge(s) {
+  const map = { activo:'badge-green', pausado:'badge-yellow', archivado:'badge-red' };
+  const lbl = { activo:'En observación', pausado:'Pausado', archivado:'Archivado' };
+  return `<span class="stat-badge ${map[s]||'badge-purple'}">${lbl[s]||s}</span>`;
+}
+
+function updateProjectSelects() {
+  const projOpts = state.researchProjects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  const op = document.getElementById('obsProject');
+  if (op) op.innerHTML = state.researchProjects.length ? projOpts : '<option value="">Crea un sistema primero →</option>';
+  const fp = document.getElementById('filterProject');
+  if (fp) { const cur = fp.value; fp.innerHTML = '<option value="">— Todos los sistemas —</option>' + projOpts; fp.value = cur; }
+  const ph = document.getElementById('obsPhase');
+  if (ph) ph.innerHTML = RESEARCH_PHASES.map(f => `<option value="${f}">${f}</option>`).join('');
+  const fph = document.getElementById('filterPhase');
+  if (fph) { const cur = fph.value; fph.innerHTML = '<option value="">— Todas las fases —</option>' + RESEARCH_PHASES.map(f => `<option value="${f}">${f}</option>`).join(''); fph.value = cur; }
+  const mo = document.getElementById('obsMood');
+  if (mo) mo.innerHTML = MOODS.map(m => `<option value="${m.v}">${m.label}</option>`).join('');
+}
+
+function renderJournal() { updateProjectSelects(); renderJournalList(); }
+
+function renderJournalList() {
+  const fProj = (document.getElementById('filterProject')||{}).value || '';
+  const fPhase = (document.getElementById('filterPhase')||{}).value || '';
+  const fText = ((document.getElementById('filterText')||{}).value || '').trim().toLowerCase().replace(/^#/, '');
+  let list = state.observations.slice().sort((a,b) => new Date(b.createdAt||b.date) - new Date(a.createdAt||a.date));
+  if (fProj) list = list.filter(o => String(o.projectId) === String(fProj));
+  if (fPhase) list = list.filter(o => o.phase === fPhase);
+  if (fText) list = list.filter(o => [o.observed,o.behavior,o.surprise,o.system,o.question,(o.tags||[]).join(' ')].join(' ').toLowerCase().includes(fText));
+
+  const qc = document.getElementById('journalQuickCount');
+  if (qc) qc.textContent = `${state.observations.length} observación(es) · ${state.researchProjects.length} sistema(s)`;
+
+  const host = document.getElementById('journalList');
+  if (!host) return;
+  if (!list.length) { host.innerHTML = '<div class="text-muted text-sm">Sin observaciones que coincidan. La primera captura toma menos de 2 minutos ✍️</div>'; return; }
+  host.innerHTML = list.map(o => {
+    const p = getProjectById(o.projectId);
+    const extra = [
+      o.behavior && ['Comportamiento', o.behavior],
+      o.surprise && ['Sorpresa / no encajó', o.surprise],
+      o.system && ['Sistema probable', o.system],
+      o.question && ['Pregunta que me llevo', o.question]
+    ].filter(Boolean).map(([k,v]) => `<div class="mt-8"><span class="text-xs text-muted">${k}:</span> <span class="text-sm">${esc(v)}</span></div>`).join('');
+    const tags = (o.tags||[]).map(t => `<span class="stat-badge badge-purple">#${esc(t)}</span>`).join(' ');
+    return `<div style="padding:14px 0; border-bottom:1px solid var(--border);">
+      <div class="flex-between" style="align-items:baseline;">
+        <div class="flex gap-8" style="align-items:center; flex-wrap:wrap;">
+          <span class="text-sm" style="font-weight:600;">${p ? esc(p.name) : '(sistema eliminado)'}</span>
+          ${o.phase ? `<span class="stat-badge badge-yellow">${esc(o.phase)}</span>` : ''}
+          ${o.mood ? `<span title="Estado emocional">${moodEmoji(o.mood)}</span>` : ''}
+        </div>
+        <span class="text-xs text-muted">${fmtDateTime(o.createdAt||o.date)}</span>
+      </div>
+      <div class="mt-8" style="font-size:14px;">${esc(o.observed)}</div>
+      ${extra}
+      ${tags ? `<div class="mt-8">${tags}</div>` : ''}
+      <div class="mt-8 flex gap-8">
+        <button class="btn btn-ghost btn-xs" onclick="exportObservationMarkdown(${o.id})" title="Descargar como Markdown (para Drive)">⬇ .md</button>
+        <button class="btn btn-ghost btn-xs" onclick="deleteObservation(${o.id})">🗑 Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function clearJournalFilters() {
+  ['filterProject','filterPhase','filterText'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderJournalList();
+}
+
+function saveObservation() {
+  const projectId = document.getElementById('obsProject').value;
+  const observed = document.getElementById('obsObserved').value.trim();
+  if (!projectId) { alert('Selecciona o crea un sistema primero.'); return; }
+  if (!observed) { alert('El campo "¿Qué observé?" es obligatorio.'); document.getElementById('obsObserved').focus(); return; }
+  const tags = (document.getElementById('obsTags').value || '').split(',').map(t => t.trim()).filter(Boolean);
+  const now = new Date().toISOString();
+  state.observations.push({
+    id: state.nextId++, projectId: Number(projectId), date: now,
+    phase: document.getElementById('obsPhase').value || '',
+    observed,
+    behavior: document.getElementById('obsBehavior').value.trim(),
+    surprise: document.getElementById('obsSurprise').value.trim(),
+    system: document.getElementById('obsSystem').value.trim(),
+    question: document.getElementById('obsQuestion').value.trim(),
+    tags,
+    mood: document.getElementById('obsMood').value || '',
+    audioUrl: '', transcription: '', tone: '',   // reservado para captura de audio (fase futura)
+    createdAt: now
+  });
+  saveState();
+  // Limpiar (conservar sistema + fase para captura rápida en cadena)
+  ['obsObserved','obsBehavior','obsSurprise','obsSystem','obsQuestion','obsTags'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('obsMood').value = '';
+  const fb = document.getElementById('obsSaveFeedback'); fb.textContent = '✓ Guardada'; setTimeout(() => fb.textContent = '', 2000);
+  renderJournalList();
+  document.getElementById('obsObserved').focus();
+}
+
+function deleteObservation(id) {
+  if (!confirm('¿Eliminar esta observación?')) return;
+  state.observations = state.observations.filter(o => o.id !== id);
+  saveState(); renderJournalList();
+}
+
+function obsMarkdown(o) {
+  const p = getProjectById(o.projectId);
+  let md = `# Observación — ${p ? p.name : 'sistema'}\n\n`;
+  md += `- **Fecha:** ${new Date(o.createdAt||o.date).toLocaleString('es-PR')}\n`;
+  md += `- **Sistema:** ${p ? p.name : '—'}${p && p.systemType ? ` (${p.systemType})` : ''}\n`;
+  if (o.phase) md += `- **Fase:** ${o.phase}\n`;
+  if (o.mood) md += `- **Estado emocional:** ${moodLabel(o.mood)}\n`;
+  if (o.tags && o.tags.length) md += `- **Tags:** ${o.tags.map(t => '#'+t).join(' ')}\n`;
+  md += `\n## ¿Qué observé?\n${o.observed}\n`;
+  if (o.behavior) md += `\n## ¿Qué comportamiento noté?\n${o.behavior}\n`;
+  if (o.surprise) md += `\n## ¿Qué me sorprendió o no encajó?\n${o.surprise}\n`;
+  if (o.system) md += `\n## ¿Qué sistema podría estar produciendo esto?\n${o.system}\n`;
+  if (o.question) md += `\n## ¿Qué pregunta me llevo?\n${o.question}\n`;
+  return md;
+}
+
+function exportObservationMarkdown(id) {
+  const o = state.observations.find(x => x.id === id); if (!o) return;
+  const p = getProjectById(o.projectId);
+  const slug = s => String(s||'obs').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40) || 'sistema';
+  const blob = new Blob([obsMarkdown(o)], { type:'text/markdown' });
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = `${slug(p ? p.name : 'sistema')}_${(o.createdAt||o.date).split('T')[0]}_${o.id}.md`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderSistemas() {
+  const projs = state.researchProjects;
+  document.getElementById('sistemasStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Sistemas</div><div class="stat-value">${projs.length}</div><div class="stat-sub">bajo observación</div></div>
+    <div class="stat-card"><div class="stat-label">Observaciones</div><div class="stat-value">${state.observations.length}</div><div class="stat-sub">capturadas</div></div>
+    <div class="stat-card"><div class="stat-label">Vinculados a CRM</div><div class="stat-value">${projs.filter(p => p.linkedClientId && getClientById(p.linkedClientId)).length}</div><div class="stat-sub">prospecto/cliente</div></div>
+    <div class="stat-card"><div class="stat-label">Sin observar aún</div><div class="stat-value">${projs.filter(p => getObservationsByProject(p.id).length === 0).length}</div><div class="stat-sub">sistemas vacíos</div></div>
+  `;
+  const tb = document.getElementById('sistemasTbody');
+  if (!projs.length) { tb.innerHTML = '<tr><td colspan="6" class="text-muted text-sm" style="padding:16px;">Aún no hay sistemas. Crea el primero con “+ Nuevo Sistema”.</td></tr>'; return; }
+  tb.innerHTML = projs.map(p => {
+    const n = getObservationsByProject(p.id).length;
+    const client = p.linkedClientId ? getClientById(p.linkedClientId) : null;
+    const link = client
+      ? `<span class="stat-badge badge-green">${esc(client.name)}</span> ${client.isCaseStudy ? '<span class="stat-badge badge-purple">Caso de estudio</span>' : ''}`
+      : `<button class="btn btn-mint btn-xs" onclick="promoteToProspect(${p.id})" title="Crear ficha de prospecto en Clientes">↗ Promover a prospecto</button>`;
+    return `<tr>
+      <td style="font-weight:600;">${esc(p.name)}</td>
+      <td>${esc(p.systemType||'—')}</td>
+      <td>${projStatusBadge(p.status)}</td>
+      <td>${n}</td>
+      <td>${link}</td>
+      <td>
+        <button class="btn btn-ghost btn-xs" onclick="editProject(${p.id})">Editar</button>
+        <button class="btn btn-ghost btn-xs" onclick="deleteProject(${p.id})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openNewProjectModal() {
+  document.getElementById('projectModalTitle').textContent = 'Nuevo Sistema';
+  ['pName','pType','pNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pStart').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pStatus').value = 'activo';
+  document.getElementById('pLinkInfo').textContent = '';
+  document.getElementById('projectModal').dataset.editId = '';
+  openModal('projectModal');
+}
+
+function editProject(id) {
+  const p = getProjectById(id); if (!p) return;
+  document.getElementById('projectModalTitle').textContent = 'Editar Sistema';
+  document.getElementById('pName').value = p.name;
+  document.getElementById('pType').value = p.systemType || '';
+  document.getElementById('pStart').value = p.startDate || '';
+  document.getElementById('pStatus').value = p.status || 'activo';
+  document.getElementById('pNotes').value = p.notes || '';
+  const client = p.linkedClientId ? getClientById(p.linkedClientId) : null;
+  document.getElementById('pLinkInfo').textContent = client ? `Vinculado a cliente/prospecto: ${client.name}` : '';
+  document.getElementById('projectModal').dataset.editId = id;
+  openModal('projectModal');
+}
+
+function saveProject() {
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { alert('El nombre del sistema es requerido'); return; }
+  const editId = document.getElementById('projectModal').dataset.editId;
+  const data = {
+    name,
+    systemType: document.getElementById('pType').value.trim(),
+    startDate: document.getElementById('pStart').value,
+    status: document.getElementById('pStatus').value,
+    notes: document.getElementById('pNotes').value.trim()
+  };
+  if (editId) { Object.assign(getProjectById(Number(editId)), data); }
+  else { state.researchProjects.push({ id: state.nextId++, linkedClientId: null, ...data }); }
+  saveState();
+  closeModal('projectModal');
+  updateProjectSelects();
+  renderSistemas();
+  if (currentPage === 'journal') renderJournal();
+}
+
+function deleteProject(id) {
+  const n = getObservationsByProject(id).length;
+  if (!confirm(`¿Eliminar este sistema?${n ? ` Tiene ${n} observación(es) que quedarán huérfanas.` : ''}`)) return;
+  state.researchProjects = state.researchProjects.filter(p => p.id !== id);
+  saveState(); renderSistemas(); updateProjectSelects();
+}
+
+function promoteToProspect(projectId) {
+  const p = getProjectById(projectId); if (!p) return;
+  if (p.linkedClientId && getClientById(p.linkedClientId)) {
+    alert('Este sistema ya está vinculado a un cliente/prospecto.');
+    showPage('clientes', document.querySelector('.nav-item[onclick*="clientes"]'));
+    return;
+  }
+  const obsCount = getObservationsByProject(projectId).length;
+  if (!confirm(`¿Crear una ficha de PROSPECTO en Clientes a partir de "${p.name}"?\nLas ${obsCount} observación(es) quedan enlazadas como contexto de origen.`)) return;
+  const newClient = {
+    id: state.nextId++, name: p.name, email: '', package: 'Event Horizon', mrr: 0,
+    status: 'prospecto', industry: p.systemType || '', driveLink: '', isCaseStudy: false,
+    originProjectId: projectId,
+    notes: `Promovido desde el Observatorio.\nSistema: ${p.name}${p.systemType ? ` (${p.systemType})` : ''}\nObservaciones de origen: ${obsCount}\n${p.notes || ''}`.trim(),
+    activity: [{ type: 'system', text: `Prospecto creado desde Observatorio (${obsCount} observación/es de origen)`, time: new Date().toISOString() }],
+    growthScores: { presence: 10, acquisition: 5, delivery: 0, expansion: 0 },
+    sopData: {}
+  };
+  state.clients.push(newClient);
+  p.linkedClientId = newClient.id;
+  saveState();
+  updateClientSelects();
+  renderSistemas();
+  alert('✓ Prospecto creado en Clientes. Podrás categorizarlo ahí con base en lo observado.');
+}
+
+function renderResearchStats() {
+  const host = document.getElementById('dashResearchStats'); if (!host) return;
+  const obs = state.observations;
+  const weekAgo = Date.now() - 7*24*3600*1000;
+  const thisWeek = obs.filter(o => new Date(o.createdAt||o.date).getTime() >= weekAgo).length;
+  const hyp = state.hypotheses;
+  const confirmed = hyp.filter(h => h.status === 'confirmada').length;
+  const discarded = hyp.filter(h => h.status === 'descartada').length;
+  const active = hyp.filter(h => h.status === 'activa' || h.status === 'en prueba').length;
+  const ratio = (confirmed + discarded) > 0 ? Math.round(discarded/(confirmed+discarded)*100) + '%' : '—';
+  host.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Observaciones</div><div class="stat-value">${obs.length}</div><div class="stat-sub">+${thisWeek} esta semana</div></div>
+    <div class="stat-card"><div class="stat-label">Sistemas</div><div class="stat-value">${state.researchProjects.length}</div><div class="stat-sub">bajo observación</div></div>
+    <div class="stat-card"><div class="stat-label">Patrones</div><div class="stat-value">${state.patterns.length}</div><div class="stat-sub">detectados</div></div>
+    <div class="stat-card"><div class="stat-label">Hipótesis</div><div class="stat-value">${active}</div><div class="stat-sub">${confirmed}✓ · ${discarded}✗ · descarte ${ratio}</div></div>
+  `;
+}
+
 loadState();
 renderDashboard();
 updateClientSelects();
