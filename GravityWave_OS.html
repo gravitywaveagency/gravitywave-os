@@ -390,6 +390,9 @@ canvas { max-width: 100%; }
     <div class="brand-sub">Agency OS · v2.0</div>
   </div>
   <nav class="nav-section">
+    <div class="nav-item" onclick="showPage('guia',this)">
+      <span class="icon">❓</span> Guía de uso
+    </div>
     <div class="nav-label">Principal</div>
     <div class="nav-item active" onclick="showPage('dashboard',this)">
       <span class="icon">◈</span> Dashboard
@@ -704,6 +707,17 @@ canvas { max-width: 100%; }
         <div class="page-sub italic">Biblioteca de recursos de la agencia</div>
       </div>
       <div class="grid grid-2" id="docsGrid"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         GUÍA DE USO
+    ═══════════════════════════════════════ -->
+    <div id="page-guia" class="page">
+      <div class="page-header">
+        <div class="page-title">Guía de uso ✦</div>
+        <div class="page-sub italic">Cómo usar cada zona, sin perderte</div>
+      </div>
+      <div id="guiaContent"></div>
     </div>
 
     <!-- ═══════════════════════════════════════
@@ -1361,7 +1375,8 @@ const PAGE_TITLES = {
   growth: 'Growth System™', operaciones: 'Operaciones', marketing: 'Marketing',
   ia: 'Análisis IA', tendencias: 'Tendencias', docs: 'Documentos',
   journal: 'Observation Journal', sistemas: 'Sistemas',
-  patrones: 'Pattern Library', hipotesis: 'Hypothesis Register', experimentos: 'Experiment Log'
+  patrones: 'Pattern Library', hipotesis: 'Hypothesis Register', experimentos: 'Experiment Log',
+  guia: 'Guía de uso'
 };
 let currentPage = 'dashboard';
 let currentProfileClientId = null;
@@ -1388,6 +1403,7 @@ function showPage(id, el) {
   else if (id === 'patrones') renderPatterns();
   else if (id === 'hipotesis') renderHypotheses();
   else if (id === 'experimentos') renderExperiments();
+  else if (id === 'guia') renderGuia();
 }
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -3212,6 +3228,64 @@ function saveExperiment() {
   saveState(); closeModal('experimentModal'); renderExperiments();
 }
 function deleteExperiment(id) { if (!confirm('¿Eliminar este experimento?')) return; state.experiments = state.experiments.filter(e => e.id !== id); saveState(); renderExperiments(); }
+
+// ── GUÍA DE USO (SOP por zona) ──
+function renderGuia() {
+  const secciones = [
+    { label: 'Principal', zonas: [
+      { i:'◈', n:'Dashboard', g:'Tu vista general del día: negocio arriba, aprendizaje abajo.', c:['Ábrelo cada mañana para un vistazo rápido.','Muestra MRR, clientes, gastos y margen, más los KPIs del Observatorio.','Es solo resumen — no se edita aquí.'] },
+      { i:'◉', n:'Clientes', g:'Tu CRM: todas tus relaciones en un lugar.', c:['“+ Nuevo Cliente” para dar de alta.','Toca un cliente para su perfil: actividad, notas, estado y Drive.','Estados: prospecto → onboarding → activo → pausado.'] }
+    ]},
+    { label: 'Observatorio — tu sistema de investigación', zonas: [
+      { i:'◐', n:'Journal', g:'Captura lo que observas, sin fricción. Es tu materia prima.', c:['Elige el Sistema y escribe “¿Qué observé?” (lo único obligatorio).','El resto es opcional: abre “+ Añadir contexto” si quieres.','Guarda y sigue. “⬇ Exportar .md” baja todo como respaldo.'] },
+      { i:'⬡', n:'Sistemas', g:'Cada “cosa” que estudias: una empresa, un flujo, un equipo.', c:['Crea el Sistema ANTES de capturar en el Journal.','“↗ Promover a prospecto” lo convierte en ficha de Clientes.','“🔮 IA” analiza sus observaciones y sugiere patrones e hipótesis.'] },
+      { i:'◈', n:'Patrones', g:'Nacen cuando 2 o más observaciones apuntan al mismo fenómeno.', c:['“+ Nuevo Patrón” y marca las observaciones que lo sostienen.','O deja que la IA te lo sugiera desde el análisis de un sistema.','Estado: emergente → confirmado (o descartado).'] },
+      { i:'◊', n:'Hipótesis', g:'Tus apuestas falsables sobre por qué pasa algo.', c:['Créala desde un patrón (botón “→ Hipótesis”).','Anota evidencia a favor y en contra.','Confirma o DESCARTA — descartar es igual de valioso. El ratio de descarte es tu KPI de aprendizaje.'] },
+      { i:'⚗', n:'Experimentos', g:'Probar una hipótesis en la práctica real.', c:['Diséñalo desde una hipótesis (botón “→ Experimento”).','Define qué vas a medir.','Después llena resultado, aprendizaje y la nueva pregunta que abre.'] }
+    ]},
+    { label: 'Gestión', zonas: [
+      { i:'◎', n:'Finanzas', g:'Tu dinero: MRR, gastos, margen y ARR proyectado.', c:['Registra tus gastos; el margen y las gráficas se calculan solos.','“Exportar PDF” para reportes.'] },
+      { i:'◇', n:'Growth System™', g:'El avance de cada cliente: Presence → Acquisition → Delivery → Expansion.', c:['Ajusta los scores de cada cliente.','Te muestra en qué etapa está flojo cada uno.'] },
+      { i:'◈', n:'Operaciones', g:'Los checklists (SOPs) de onboarding por cliente.', c:['Elige un cliente y marca los pasos completados.'] }
+    ]},
+    { label: 'Estrategia', zonas: [
+      { i:'◍', n:'Marketing', g:'Tus acciones y plantillas de marketing.', c:['Organiza campañas y comunicaciones con clientes.'] },
+      { i:'◬', n:'Análisis IA', g:'Pregúntale a Claude con el contexto de tu agencia.', c:['Requiere tu API Key en el sidebar.','Escribe tu pregunta o usa los accesos rápidos.'] },
+      { i:'◭', n:'Tendencias', g:'Analiza una tendencia de marketing con IA.', c:['Escribe la tendencia y toca analizar.'] },
+      { i:'◰', n:'Documentos', g:'Tu biblioteca de recursos: propuestas, contratos, SOPs, landing.', c:['Referencia rápida de tus plantillas oficiales.'] }
+    ]}
+  ];
+
+  const intro = `<div class="card" style="margin-bottom:20px;background:var(--bg2);border-color:rgba(123,92,229,0.3);">
+    <div class="text-sm" style="line-height:1.8;">Respira — es normal sentirse así al principio: construiste mucho en poco tiempo. No tienes que usar todo a la vez. <strong>El corazón de todo es una sola acción: capturar observaciones en el Journal.</strong> Desde ahí crece el resto. Vuelve a esta guía cuando te sientas perdida.</div>
+  </div>`;
+  const start = `<div class="card" style="border-color:rgba(123,92,229,0.4);margin-bottom:20px;">
+    <div class="card-title">🚀 Empieza aquí — 3 pasos</div>
+    <div class="text-sm" style="line-height:2;">
+      <strong>1.</strong> Pega tu <strong>API Key de Claude</strong> en el sidebar (abajo a la izquierda). Sin ella, la IA no funciona.<br>
+      <strong>2.</strong> Crea tu primer <strong>Sistema</strong> en Observatorio → Sistemas. Un “sistema” es cualquier cosa que vas a observar.<br>
+      <strong>3.</strong> Captura <strong>3 observaciones</strong> en el <strong>Journal</strong>. Todo lo demás crece desde ahí.
+    </div>
+  </div>`;
+  const ritmo = `<div class="card" style="margin-bottom:24px;">
+    <div class="card-title">🌀 Ritmo sugerido</div>
+    <div class="grid grid-3">
+      <div><span class="stat-badge badge-green">Diario</span><div class="text-xs text-muted" style="margin-top:6px;">Captura en el Journal lo que notes, en el momento y sin filtrar.</div></div>
+      <div><span class="stat-badge badge-yellow">Semanal</span><div class="text-xs text-muted" style="margin-top:6px;">Revisa Sistemas, usa “🔮 IA”, crea o confirma patrones e hipótesis.</div></div>
+      <div><span class="stat-badge badge-purple">Mensual</span><div class="text-xs text-muted" style="margin-top:6px;">Revisa Finanzas y Growth de cada cliente. Confirma o descarta hipótesis.</div></div>
+    </div>
+  </div>`;
+  const zoneCard = z => `<div class="card" style="margin-bottom:12px;">
+    <div class="flex gap-8" style="align-items:center;margin-bottom:6px;"><span style="font-size:16px;color:var(--pl);width:18px;text-align:center;">${z.i}</span><span style="font-weight:600;">${esc(z.n)}</span></div>
+    <div class="text-sm" style="margin-bottom:8px;color:var(--text2);">${esc(z.g)}</div>
+    ${z.c.map(x => `<div class="text-xs text-muted" style="padding:2px 0;">• ${esc(x)}</div>`).join('')}
+  </div>`;
+  const groups = secciones.map(s => `
+    <div class="card-title" style="margin:16px 0 12px;">${esc(s.label)}</div>
+    <div class="grid grid-3">${s.zonas.map(zoneCard).join('')}</div>`).join('');
+
+  document.getElementById('guiaContent').innerHTML = intro + start + ritmo + groups;
+}
 
 function renderResearchStats() {
   const host = document.getElementById('dashResearchStats'); if (!host) return;
