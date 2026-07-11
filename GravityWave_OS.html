@@ -926,6 +926,20 @@ canvas { max-width: 100%; }
   </div>
 </div>
 
+<!-- Modal: Análisis IA del Observatorio -->
+<div class="modal-overlay" id="analysisModal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <div class="modal-title" id="analysisModalTitle">Análisis IA</div>
+      <button class="modal-close" onclick="closeModal('analysisModal')">✕</button>
+    </div>
+    <div class="modal-body" id="analysisBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('analysisModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Perfil de Cliente -->
 <div class="modal-overlay" id="clientProfileModal">
   <div class="modal" style="max-width:800px;">
@@ -1712,9 +1726,9 @@ async function generateAIMessage() {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01' },
+      headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:800,
+        model:'claude-sonnet-4-6', max_tokens:800,
         system:`Eres Katherine Martínez de Gravity Wave Agency, una agencia boutique de marketing en Puerto Rico. Redacta emails profesionales, cálidos y estratégicos en español.`,
         messages:[{ role:'user', content:`Redacta un email para el cliente ${c?c.name:'[cliente]'} (industria: ${c?c.industry||'no especificada':'n/a'}, paquete: ${c?c.package:'n/a'}) sobre: "${subj}". El email debe ser conciso, profesional y reflejar la voz de la agencia Gravity Wave. Firma como Katherine Martínez.` }]
       })
@@ -2115,9 +2129,9 @@ async function generateAIReport() {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01' },
+      headers:{ 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        model:'claude-sonnet-4-6', max_tokens:1000,
         system:'Eres una estratega de marketing digital en Puerto Rico. Genera resúmenes ejecutivos profesionales para reportes mensuales de clientes en español.',
         messages:[{ role:'user', content:`Genera un resumen ejecutivo para el reporte mensual de ${c.name} (${c.industry||'negocio local'}, paquete ${c.package}). Sus scores de Growth System son: Presence ${gs.presence||0}%, Acquisition ${gs.acquisition||0}%, Delivery ${gs.delivery||0}%, Expansion ${gs.expansion||0}%. El resumen debe tener 2-3 párrafos, ser positivo pero honesto, y mencionar áreas de oportunidad.` }]
       })
@@ -2223,8 +2237,8 @@ async function sendAI() {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, system:getAgencyContext(), messages:aiHistory.slice(-10) })
+      headers:{ 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, system:getAgencyContext(), messages:aiHistory.slice(-10) })
     });
     const data = await res.json();
     removeTyping(typingId);
@@ -2275,9 +2289,9 @@ async function analyzeTrend() {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01' },
+      headers:{ 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        model:'claude-sonnet-4-6', max_tokens:1000,
         system:'Eres experta en marketing digital en Puerto Rico. Analiza tendencias con datos prácticos, ejemplos locales y recomendaciones accionables. Responde en español.',
         messages:[{ role:'user', content:`Analiza la tendencia "${q}" para pequeñas y medianas empresas en Puerto Rico en 2025. Incluye: relevancia actual, cómo aplicarlo, ejemplos de industrias que lo usan bien, y 3 recomendaciones concretas.` }]
       })
@@ -2526,6 +2540,7 @@ function renderSistemas() {
       <td>${n}</td>
       <td>${link}</td>
       <td>
+        <button class="btn btn-mint btn-xs" onclick="analyzeSystemAI(${p.id})" title="Analizar observaciones con Claude">🔮 IA</button>
         <button class="btn btn-ghost btn-xs" onclick="editProject(${p.id})">Editar</button>
         <button class="btn btn-ghost btn-xs" onclick="deleteProject(${p.id})">🗑</button>
       </td>
@@ -2608,6 +2623,67 @@ function promoteToProspect(projectId) {
   updateClientSelects();
   renderSistemas();
   alert('✓ Prospecto creado en Clientes. Podrás categorizarlo ahí con base en lo observado.');
+}
+
+// Markdown-lite seguro: escapa HTML y solo permite **negrita** + saltos de línea
+function mdLite(t) {
+  return esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+async function analyzeSystemAI(projectId) {
+  const p = getProjectById(projectId); if (!p) return;
+  const obs = getObservationsByProject(projectId);
+  if (!obs.length) { alert('Este sistema aún no tiene observaciones. Captura al menos una en el Journal.'); return; }
+
+  document.getElementById('analysisModalTitle').textContent = `🔮 Análisis IA — ${p.name}`;
+  const body = document.getElementById('analysisBody');
+  openModal('analysisModal');
+
+  const key = getApiKey();
+  if (!key) {
+    body.innerHTML = '<div style="color:var(--coral)">Agrega tu <strong>API Key de Claude</strong> en el sidebar (abajo a la izquierda) para usar el análisis.</div>';
+    return;
+  }
+  body.innerHTML = `<div class="text-muted"><div class="typing"><span></span><span></span><span></span></div> Analizando ${obs.length} observación(es) con Claude...</div>`;
+
+  const obsText = obs.map((o, i) => {
+    let s = `Observación ${i+1} (${o.phase || 'sin fase'}, ${new Date(o.createdAt||o.date).toLocaleDateString('es-PR')}):\n- ¿Qué observé?: ${o.observed}`;
+    if (o.behavior) s += `\n- Comportamiento: ${o.behavior}`;
+    if (o.surprise) s += `\n- Sorpresa / no encajó: ${o.surprise}`;
+    if (o.system) s += `\n- Sistema probable: ${o.system}`;
+    if (o.question) s += `\n- Pregunta que me llevo: ${o.question}`;
+    if (o.tags && o.tags.length) s += `\n- Tags: ${o.tags.join(', ')}`;
+    return s;
+  }).join('\n\n');
+
+  const client = p.linkedClientId ? getClientById(p.linkedClientId) : null;
+  const sysContext = `Sistema bajo observación: "${p.name}"${p.systemType ? ` (tipo: ${p.systemType})` : ''}. ` +
+    (client ? `Ya vinculado al cliente/prospecto "${client.name}" (estado: ${client.status}).` : 'Aún no está vinculado a ningún cliente/prospecto.') +
+    (p.notes ? ` Notas del sistema: ${p.notes}` : '');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 1400,
+        system: `Eres analista estratégico de Gravity Wave Agency, un estudio boutique de crecimiento en Puerto Rico especializado en sistemas humanos. Analizas observaciones de campo con rigor y SIN forzar conclusiones prematuras. Paquetes de la agencia: Event Horizon ($500–850/mes, starter), Quantum Leap ($1,000–2,000/mes, crecimiento), Galactic Expansion ($2,500–5,000+/mes, ecosistema completo). Responde SIEMPRE en español, tono profesional boutique, conciso y accionable. Usa markdown simple: títulos con **negrita** y viñetas con "-". No inventes datos que no estén en las observaciones.`,
+        messages: [{ role: 'user', content: `${sysContext}\n\nObservaciones capturadas:\n\n${obsText}\n\nAnaliza este sistema y responde con estas cuatro secciones:\n\n**1. Patrones emergentes** — fenómenos donde 2 o más observaciones apuntan a lo mismo. Si no hay evidencia suficiente para un patrón, dilo con honestidad.\n**2. Hipótesis sugeridas** — enunciados falsables, cada uno con su evidencia a favor y en contra. Señala cuáles valdría la pena intentar DESCARTAR activamente.\n**3. Categorización** — si este sistema es (o podría ser) una organización/prospecto: su madurez, la oportunidad de negocio, y qué paquete de Gravity Wave encajaría y por qué. Si no es una empresa, dilo claramente.\n**4. Próximas preguntas** — 2 o 3 preguntas concretas para llevarme a la siguiente ronda de observación.` }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) {
+      body.innerHTML = `<div style="color:var(--coral)">Error del API: ${esc(data.error.message || 'desconocido')}. Verifica tu API Key.</div>`;
+      return;
+    }
+    const text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '(respuesta vacía)';
+    body.innerHTML = `<div style="line-height:1.7;color:var(--text2);">${mdLite(text)}</div>
+      <div class="text-xs text-muted" style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px;">Análisis generado por Claude a partir de ${obs.length} observación(es). Revisa antes de accionar.</div>`;
+  } catch (e) {
+    body.innerHTML = '<div style="color:var(--coral)">Error de conexión. Verifica tu API Key y tu conexión a internet.</div>';
+  }
 }
 
 function renderResearchStats() {
