@@ -404,6 +404,15 @@ canvas { max-width: 100%; }
     <div class="nav-item" onclick="showPage('sistemas',this)">
       <span class="icon">⬡</span> Sistemas
     </div>
+    <div class="nav-item" onclick="showPage('patrones',this)">
+      <span class="icon">◈</span> Patrones
+    </div>
+    <div class="nav-item" onclick="showPage('hipotesis',this)">
+      <span class="icon">◊</span> Hipótesis
+    </div>
+    <div class="nav-item" onclick="showPage('experimentos',this)">
+      <span class="icon">⚗</span> Experimentos
+    </div>
     <div class="nav-label">Gestión</div>
     <div class="nav-item" onclick="showPage('finanzas',this)">
       <span class="icon">◎</span> Finanzas
@@ -790,6 +799,59 @@ canvas { max-width: 100%; }
     </div>
 
     <!-- ═══════════════════════════════════════
+         PATTERN LIBRARY
+    ═══════════════════════════════════════ -->
+    <div id="page-patrones" class="page">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">Pattern Library</div>
+          <div class="page-sub italic">Un patrón nace cuando 2+ observaciones apuntan al mismo fenómeno</div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="renderPatterns()">↻ Actualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewPattern()">+ Nuevo Patrón</button>
+        </div>
+      </div>
+      <div class="grid grid-4 mb-16" id="patternStats"></div>
+      <div id="patternList"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         HYPOTHESIS REGISTER
+    ═══════════════════════════════════════ -->
+    <div id="page-hipotesis" class="page">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">Hypothesis Register</div>
+          <div class="page-sub italic">Descartar una hipótesis es tan valioso como confirmarla</div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="renderHypotheses()">↻ Actualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewHypothesis()">+ Nueva Hipótesis</button>
+        </div>
+      </div>
+      <div class="grid grid-4 mb-16" id="hypoStats"></div>
+      <div id="hypoList"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         EXPERIMENT LOG
+    ═══════════════════════════════════════ -->
+    <div id="page-experimentos" class="page">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">Experiment Log</div>
+          <div class="page-sub italic">Diseño → medición → aprendizaje → nueva pregunta</div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="renderExperiments()">↻ Actualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewExperiment()">+ Nuevo Experimento</button>
+        </div>
+      </div>
+      <div id="experimentList"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
          SISTEMAS (Research Projects)
     ═══════════════════════════════════════ -->
     <div id="page-sistemas" class="page">
@@ -879,6 +941,131 @@ canvas { max-width: 100%; }
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveClient()">Guardar Cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo/Editar Patrón -->
+<div class="modal-overlay" id="patternModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title" id="patternModalTitle">Nuevo Patrón</div>
+      <button class="modal-close" onclick="closeModal('patternModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Nombre del patrón *</label>
+          <input type="text" id="patName" class="form-input" placeholder="Ej: Fricción en el primer paso">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select id="patStatus" class="form-select">
+            <option value="emergente">Emergente</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <textarea id="patDesc" class="form-textarea" placeholder="¿Qué fenómeno recurrente describe este patrón?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observaciones vinculadas <span class="text-xs text-muted">(marca 2 o más)</span></label>
+        <div id="patObsList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('patternModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePattern()">Guardar Patrón</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva/Editar Hipótesis -->
+<div class="modal-overlay" id="hypothesisModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title" id="hypModalTitle">Nueva Hipótesis</div>
+      <button class="modal-close" onclick="closeModal('hypothesisModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Enunciado *</label>
+        <textarea id="hypStatement" class="form-textarea" placeholder="Si [cambio], entonces [efecto esperado], porque [razón]..."></textarea>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Patrón de origen</label>
+          <select id="hypPattern" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select id="hypStatus" class="form-select">
+            <option value="activa">Activa</option>
+            <option value="en prueba">En prueba</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="descartada">Descartada</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Evidencia a favor <span class="text-xs text-muted">(una por línea)</span></label>
+          <textarea id="hypFor" class="form-textarea" placeholder="Cada línea = una evidencia"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Evidencia en contra <span class="text-xs text-muted">(una por línea)</span></label>
+          <textarea id="hypAgainst" class="form-textarea" placeholder="Cada línea = una evidencia"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('hypothesisModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveHypothesis()">Guardar Hipótesis</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo/Editar Experimento -->
+<div class="modal-overlay" id="experimentModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title" id="expModalTitle">Nuevo Experimento</div>
+      <button class="modal-close" onclick="closeModal('experimentModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Hipótesis vinculada</label>
+        <select id="expHyp" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diseño del experimento</label>
+        <textarea id="expDesign" class="form-textarea" placeholder="¿Qué vas a hacer para probar la hipótesis?"></textarea>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Qué se mide</label>
+          <textarea id="expMeasures" class="form-textarea" placeholder="Métrica o señal observable"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Resultado</label>
+          <textarea id="expResult" class="form-textarea" placeholder="Qué pasó (llénalo después)"></textarea>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Aprendizaje</label>
+        <textarea id="expLearning" class="form-textarea" placeholder="¿Qué aprendiste, confirme o no la hipótesis?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nueva pregunta generada</label>
+        <input type="text" id="expQuestion" class="form-input" placeholder="La siguiente pregunta que abre este experimento">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('experimentModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveExperiment()">Guardar Experimento</button>
     </div>
   </div>
 </div>
@@ -1166,7 +1353,8 @@ const PAGE_TITLES = {
   dashboard: 'Dashboard', clientes: 'Clientes', finanzas: 'Finanzas',
   growth: 'Growth System™', operaciones: 'Operaciones', marketing: 'Marketing',
   ia: 'Análisis IA', tendencias: 'Tendencias', docs: 'Documentos',
-  journal: 'Observation Journal', sistemas: 'Sistemas'
+  journal: 'Observation Journal', sistemas: 'Sistemas',
+  patrones: 'Pattern Library', hipotesis: 'Hypothesis Register', experimentos: 'Experiment Log'
 };
 let currentPage = 'dashboard';
 let currentProfileClientId = null;
@@ -1190,6 +1378,9 @@ function showPage(id, el) {
   else if (id === 'docs') renderDocs();
   else if (id === 'journal') renderJournal();
   else if (id === 'sistemas') renderSistemas();
+  else if (id === 'patrones') renderPatterns();
+  else if (id === 'hipotesis') renderHypotheses();
+  else if (id === 'experimentos') renderExperiments();
 }
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -2685,6 +2876,222 @@ async function analyzeSystemAI(projectId) {
     body.innerHTML = '<div style="color:var(--coral)">Error de conexión. Verifica tu API Key y tu conexión a internet.</div>';
   }
 }
+
+// ── FASE 2: PATRONES / HIPÓTESIS / EXPERIMENTOS ──
+function getPatternById(id) { return state.patterns.find(x => x.id == id); }
+function getHypothesisById(id) { return state.hypotheses.find(x => x.id == id); }
+function getExperimentById(id) { return state.experiments.find(x => x.id == id); }
+function patternBadge(s) { const m = { emergente:'badge-yellow', confirmado:'badge-green', descartado:'badge-red' }; return `<span class="stat-badge ${m[s]||'badge-purple'}">${s}</span>`; }
+function hypoBadge(s) { const m = { activa:'badge-purple', 'en prueba':'badge-yellow', confirmada:'badge-green', descartada:'badge-red' }; return `<span class="stat-badge ${m[s]||'badge-purple'}">${s}</span>`; }
+
+// ---- Pattern Library ----
+function renderPatterns() {
+  const ps = state.patterns;
+  document.getElementById('patternStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Patrones</div><div class="stat-value">${ps.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Emergentes</div><div class="stat-value">${ps.filter(p=>p.status==='emergente').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Confirmados</div><div class="stat-value" style="color:var(--mint)">${ps.filter(p=>p.status==='confirmado').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Descartados</div><div class="stat-value" style="color:var(--coral)">${ps.filter(p=>p.status==='descartado').length}</div></div>`;
+  const host = document.getElementById('patternList');
+  if (!ps.length) { host.innerHTML = '<div class="card"><div class="text-muted text-sm">Aún no hay patrones. Cuando 2+ observaciones apunten a lo mismo, créalo con “+ Nuevo Patrón”.</div></div>'; return; }
+  host.innerHTML = ps.map(p => {
+    const obs = (p.observationIds||[]).map(id => state.observations.find(o => o.id == id)).filter(Boolean);
+    const projNames = [...new Set(obs.map(o => { const pr = getProjectById(o.projectId); return pr ? pr.name : null; }).filter(Boolean))];
+    return `<div class="card mb-16">
+      <div class="flex-between mb-12">
+        <div class="flex gap-8" style="align-items:center;flex-wrap:wrap;">
+          <span style="font-weight:600;font-size:15px;">${esc(p.name)}</span>${patternBadge(p.status)}
+          <span class="text-xs text-muted">${obs.length} observación(es)</span>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-mint btn-xs" onclick="openNewHypothesis(${p.id})" title="Crear hipótesis desde este patrón">→ Hipótesis</button>
+          <button class="btn btn-ghost btn-xs" onclick="editPattern(${p.id})">Editar</button>
+          <button class="btn btn-ghost btn-xs" onclick="deletePattern(${p.id})">🗑</button>
+        </div>
+      </div>
+      ${p.description ? `<div class="text-sm" style="margin-bottom:10px;">${esc(p.description)}</div>` : ''}
+      ${projNames.length ? `<div class="text-xs text-muted mb-12">Aparece en: ${projNames.map(n => `<span class="stat-badge badge-purple">${esc(n)}</span>`).join(' ')}</div>` : ''}
+      ${obs.length ? `<div class="text-xs text-muted" style="margin-bottom:4px;">Observaciones vinculadas:</div>${obs.map(o => `<div class="text-xs" style="padding:4px 0;border-bottom:1px solid var(--border);">• ${esc(o.observed.slice(0,120))}${o.observed.length>120?'…':''}</div>`).join('')}` : ''}
+    </div>`;
+  }).join('');
+}
+function fillPatternObsChecklist(selected) {
+  const box = document.getElementById('patObsList'); const sel = selected || [];
+  if (!state.observations.length) { box.innerHTML = '<div class="text-xs text-muted">No hay observaciones todavía. Captura algunas en el Journal.</div>'; return; }
+  box.innerHTML = state.observations.slice().sort((a,b) => new Date(b.createdAt||b.date) - new Date(a.createdAt||a.date)).map(o => {
+    const pr = getProjectById(o.projectId);
+    return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+      <input type="checkbox" value="${o.id}" ${sel.includes(o.id)?'checked':''} style="margin-top:3px;">
+      <span class="text-xs"><strong>${pr?esc(pr.name):'—'}</strong> · ${esc(o.observed.slice(0,90))}${o.observed.length>90?'…':''}</span>
+    </label>`;
+  }).join('');
+}
+function openNewPattern() {
+  document.getElementById('patternModalTitle').textContent = 'Nuevo Patrón';
+  document.getElementById('patName').value = '';
+  document.getElementById('patDesc').value = '';
+  document.getElementById('patStatus').value = 'emergente';
+  document.getElementById('patternModal').dataset.editId = '';
+  fillPatternObsChecklist([]);
+  openModal('patternModal');
+}
+function editPattern(id) {
+  const p = getPatternById(id); if (!p) return;
+  document.getElementById('patternModalTitle').textContent = 'Editar Patrón';
+  document.getElementById('patName').value = p.name;
+  document.getElementById('patDesc').value = p.description || '';
+  document.getElementById('patStatus').value = p.status || 'emergente';
+  document.getElementById('patternModal').dataset.editId = id;
+  fillPatternObsChecklist(p.observationIds || []);
+  openModal('patternModal');
+}
+function savePattern() {
+  const name = document.getElementById('patName').value.trim();
+  if (!name) { alert('El nombre del patrón es requerido'); return; }
+  const obsIds = [...document.querySelectorAll('#patObsList input:checked')].map(c => Number(c.value));
+  const projIds = [...new Set(obsIds.map(id => { const o = state.observations.find(x => x.id == id); return o ? o.projectId : null; }).filter(Boolean))];
+  const editId = document.getElementById('patternModal').dataset.editId;
+  const data = { name, description: document.getElementById('patDesc').value.trim(), status: document.getElementById('patStatus').value, observationIds: obsIds, projectIds: projIds };
+  if (editId) { Object.assign(getPatternById(Number(editId)), data); }
+  else { data.id = state.nextId++; data.detectedAt = new Date().toISOString(); state.patterns.push(data); }
+  saveState(); closeModal('patternModal'); renderPatterns();
+}
+function deletePattern(id) { if (!confirm('¿Eliminar este patrón?')) return; state.patterns = state.patterns.filter(p => p.id !== id); saveState(); renderPatterns(); }
+
+// ---- Hypothesis Register ----
+function renderHypotheses() {
+  const hs = state.hypotheses; const c = s => hs.filter(h => h.status === s).length;
+  const confirmed = c('confirmada'), discarded = c('descartada');
+  const ratio = (confirmed + discarded) > 0 ? Math.round(discarded/(confirmed+discarded)*100) + '%' : '—';
+  document.getElementById('hypoStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Activas / En prueba</div><div class="stat-value">${c('activa')+c('en prueba')}</div></div>
+    <div class="stat-card"><div class="stat-label">Confirmadas</div><div class="stat-value" style="color:var(--mint)">${confirmed}</div></div>
+    <div class="stat-card"><div class="stat-label">Descartadas</div><div class="stat-value" style="color:var(--coral)">${discarded}</div></div>
+    <div class="stat-card"><div class="stat-label">Ratio de descarte</div><div class="stat-value">${ratio}</div><div class="stat-sub">KPI de aprendizaje</div></div>`;
+  const host = document.getElementById('hypoList');
+  if (!hs.length) { host.innerHTML = '<div class="card"><div class="text-muted text-sm">Aún no hay hipótesis. Créalas desde un patrón (botón “→ Hipótesis”) o con “+ Nueva Hipótesis”.</div></div>'; return; }
+  host.innerHTML = hs.map(h => {
+    const pat = h.patternId ? getPatternById(h.patternId) : null;
+    const ev = (arr, color) => (arr && arr.length) ? arr.map(e => `<div class="text-xs" style="color:${color}">• ${esc(e)}</div>`).join('') : '<div class="text-xs text-muted">—</div>';
+    const open = (h.status === 'activa' || h.status === 'en prueba');
+    return `<div class="card mb-16">
+      <div class="flex-between mb-12">
+        <div class="flex gap-8" style="align-items:center;flex-wrap:wrap;">${hypoBadge(h.status)}${pat?`<span class="text-xs text-muted">origen: ${esc(pat.name)}</span>`:''}${h.resolvedAt?`<span class="text-xs text-muted">resuelta ${fmtDate(h.resolvedAt)}</span>`:''}</div>
+        <div class="flex gap-8">
+          ${open ? `<button class="btn btn-mint btn-xs" onclick="resolveHypothesis(${h.id},'confirmada')">✓ Confirmar</button><button class="btn btn-danger btn-xs" onclick="resolveHypothesis(${h.id},'descartada')">✗ Descartar</button>` : ''}
+          <button class="btn btn-ghost btn-xs" onclick="openNewExperiment(${h.id})" title="Diseñar experimento">→ Experimento</button>
+          <button class="btn btn-ghost btn-xs" onclick="editHypothesis(${h.id})">Editar</button>
+          <button class="btn btn-ghost btn-xs" onclick="deleteHypothesis(${h.id})">🗑</button>
+        </div>
+      </div>
+      <div style="font-size:14px;margin-bottom:12px;">${esc(h.statement)}</div>
+      <div class="grid grid-2">
+        <div><div class="text-xs text-muted" style="margin-bottom:4px;">Evidencia a favor</div>${ev(h.evidenceFor,'var(--mint)')}</div>
+        <div><div class="text-xs text-muted" style="margin-bottom:4px;">Evidencia en contra</div>${ev(h.evidenceAgainst,'var(--coral)')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function fillPatternSelect(current) {
+  const el = document.getElementById('hypPattern'); if (!el) return;
+  el.innerHTML = '<option value="">— Sin patrón de origen —</option>' + state.patterns.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  el.value = (current != null && current !== '') ? String(current) : '';
+}
+function openNewHypothesis(patternId) {
+  document.getElementById('hypModalTitle').textContent = 'Nueva Hipótesis';
+  ['hypStatement','hypFor','hypAgainst'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('hypStatus').value = 'activa';
+  fillPatternSelect(patternId);
+  document.getElementById('hypothesisModal').dataset.editId = '';
+  openModal('hypothesisModal');
+}
+function editHypothesis(id) {
+  const h = getHypothesisById(id); if (!h) return;
+  document.getElementById('hypModalTitle').textContent = 'Editar Hipótesis';
+  document.getElementById('hypStatement').value = h.statement;
+  document.getElementById('hypStatus').value = h.status || 'activa';
+  document.getElementById('hypFor').value = (h.evidenceFor || []).join('\n');
+  document.getElementById('hypAgainst').value = (h.evidenceAgainst || []).join('\n');
+  fillPatternSelect(h.patternId);
+  document.getElementById('hypothesisModal').dataset.editId = id;
+  openModal('hypothesisModal');
+}
+function saveHypothesis() {
+  const statement = document.getElementById('hypStatement').value.trim();
+  if (!statement) { alert('El enunciado de la hipótesis es requerido'); return; }
+  const lines = v => v.split('\n').map(s => s.trim()).filter(Boolean);
+  const status = document.getElementById('hypStatus').value;
+  const patVal = document.getElementById('hypPattern').value;
+  const editId = document.getElementById('hypothesisModal').dataset.editId;
+  const data = { statement, patternId: patVal ? Number(patVal) : null, status, evidenceFor: lines(document.getElementById('hypFor').value), evidenceAgainst: lines(document.getElementById('hypAgainst').value) };
+  if (editId) {
+    const h = getHypothesisById(Number(editId)); Object.assign(h, data);
+    if ((status === 'confirmada' || status === 'descartada') && !h.resolvedAt) h.resolvedAt = new Date().toISOString();
+    if (status === 'activa' || status === 'en prueba') h.resolvedAt = null;
+  } else {
+    data.id = state.nextId++; data.date = new Date().toISOString();
+    data.resolvedAt = (status === 'confirmada' || status === 'descartada') ? new Date().toISOString() : null;
+    state.hypotheses.push(data);
+  }
+  saveState(); closeModal('hypothesisModal'); renderHypotheses();
+}
+function resolveHypothesis(id, status) {
+  const h = getHypothesisById(id); if (!h) return;
+  h.status = status; h.resolvedAt = new Date().toISOString();
+  saveState(); renderHypotheses();
+}
+function deleteHypothesis(id) { if (!confirm('¿Eliminar esta hipótesis?')) return; state.hypotheses = state.hypotheses.filter(h => h.id !== id); saveState(); renderHypotheses(); }
+
+// ---- Experiment Log ----
+function renderExperiments() {
+  const es = state.experiments; const host = document.getElementById('experimentList');
+  if (!es.length) { host.innerHTML = '<div class="card"><div class="text-muted text-sm">Aún no hay experimentos. Diséñalos desde una hipótesis (botón “→ Experimento”) o con “+ Nuevo Experimento”.</div></div>'; return; }
+  host.innerHTML = es.map(x => {
+    const h = x.hypothesisId ? getHypothesisById(x.hypothesisId) : null;
+    const row = (label, val) => val ? `<div class="mt-8"><span class="text-xs text-muted">${label}:</span> <span class="text-sm">${esc(val)}</span></div>` : '';
+    return `<div class="card mb-16">
+      <div class="flex-between mb-12">
+        <div class="text-xs text-muted">${h ? `Hipótesis: ${esc(h.statement.slice(0,80))}${h.statement.length>80?'…':''}` : 'Sin hipótesis vinculada'}</div>
+        <div class="flex gap-8"><button class="btn btn-ghost btn-xs" onclick="editExperiment(${x.id})">Editar</button><button class="btn btn-ghost btn-xs" onclick="deleteExperiment(${x.id})">🗑</button></div>
+      </div>
+      ${row('Diseño', x.design)}${row('Qué se mide', x.measures)}${row('Resultado', x.result)}${row('Aprendizaje', x.learning)}${row('Nueva pregunta', x.newQuestion)}
+    </div>`;
+  }).join('');
+}
+function fillHypSelect(current) {
+  const el = document.getElementById('expHyp'); if (!el) return;
+  el.innerHTML = '<option value="">— Sin hipótesis vinculada —</option>' + state.hypotheses.map(h => `<option value="${h.id}">${esc(h.statement.slice(0,70))}${h.statement.length>70?'…':''}</option>`).join('');
+  el.value = (current != null && current !== '') ? String(current) : '';
+}
+function openNewExperiment(hypId) {
+  document.getElementById('expModalTitle').textContent = 'Nuevo Experimento';
+  ['expDesign','expMeasures','expResult','expLearning','expQuestion'].forEach(id => document.getElementById(id).value = '');
+  fillHypSelect(hypId);
+  document.getElementById('experimentModal').dataset.editId = '';
+  openModal('experimentModal');
+}
+function editExperiment(id) {
+  const x = getExperimentById(id); if (!x) return;
+  document.getElementById('expModalTitle').textContent = 'Editar Experimento';
+  document.getElementById('expDesign').value = x.design || '';
+  document.getElementById('expMeasures').value = x.measures || '';
+  document.getElementById('expResult').value = x.result || '';
+  document.getElementById('expLearning').value = x.learning || '';
+  document.getElementById('expQuestion').value = x.newQuestion || '';
+  fillHypSelect(x.hypothesisId);
+  document.getElementById('experimentModal').dataset.editId = id;
+  openModal('experimentModal');
+}
+function saveExperiment() {
+  const hypVal = document.getElementById('expHyp').value;
+  const data = { hypothesisId: hypVal ? Number(hypVal) : null, design: document.getElementById('expDesign').value.trim(), measures: document.getElementById('expMeasures').value.trim(), result: document.getElementById('expResult').value.trim(), learning: document.getElementById('expLearning').value.trim(), newQuestion: document.getElementById('expQuestion').value.trim() };
+  if (!data.design && !data.measures) { alert('Al menos describe el diseño o qué se mide.'); return; }
+  const editId = document.getElementById('experimentModal').dataset.editId;
+  if (editId) { Object.assign(getExperimentById(Number(editId)), data); }
+  else { data.id = state.nextId++; state.experiments.push(data); }
+  saveState(); closeModal('experimentModal'); renderExperiments();
+}
+function deleteExperiment(id) { if (!confirm('¿Eliminar este experimento?')) return; state.experiments = state.experiments.filter(e => e.id !== id); saveState(); renderExperiments(); }
 
 function renderResearchStats() {
   const host = document.getElementById('dashResearchStats'); if (!host) return;
