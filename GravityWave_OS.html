@@ -928,7 +928,7 @@ canvas { max-width: 100%; }
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">MRR ($)</label>
+          <label class="form-label">Mensualidad / MRR ($)</label>
           <input type="number" id="cMRR" class="form-input" placeholder="0">
         </div>
         <div class="form-group">
@@ -944,6 +944,20 @@ canvas { max-width: 100%; }
           <label class="form-label">Industria</label>
           <input type="text" id="cIndustry" class="form-input" placeholder="Ej: Restaurante, Boutique...">
         </div>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Término de contrato</label>
+          <input type="text" id="cContract" class="form-input" placeholder="Ej: 12 meses, indefinido, hasta 31/12/2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pago inicial / Depósito ($)</label>
+          <input type="number" id="cDeposit" class="form-input" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Servicios a proveer</label>
+        <div id="cServices" style="display:flex;flex-wrap:wrap;gap:6px 16px;padding:4px 0;"></div>
       </div>
       <div class="form-group">
         <label class="form-label">📁 Link Google Drive Folder</label>
@@ -1596,7 +1610,7 @@ function renderClients(filter='') {
       <td>${statusBadge(c.status)}</td>
       <td style="color:var(--mint);font-weight:600;">${fmt(c.mrr)}</td>
       <td>${lastAct ? `<div class="text-sm">${lastAct.text}</div><div class="text-xs text-muted">${timeAgo(lastAct.time)}</div>` : '<span class="text-muted text-xs">—</span>'}</td>
-      <td>${c.driveLink ? `<a href="${c.driveLink}" target="_blank" class="drive-link">📁 Drive</a>` : '<span class="text-muted text-xs">No enlazado</span>'}</td>
+      <td>${c.driveLink ? `<a href="${c.driveLink}" target="_blank" rel="noopener" class="drive-link">📁 Drive</a> <button class="btn btn-ghost btn-xs" onclick="copyDriveLink(${c.id})" title="Copiar link">⧉</button>` : '<span class="text-muted text-xs">No enlazado</span>'}</td>
       <td>
         <div class="flex gap-8">
           <button class="btn btn-ghost btn-xs" onclick="openClientProfile(${c.id})">Ver</button>
@@ -1622,11 +1636,31 @@ function updateClientSelects() {
   if (rptSel) rptSel.innerHTML = '<option value="">Seleccionar cliente</option>' + opts;
 }
 
+const SERVICIOS = ['Redes sociales','Contenido / Copywriting','Diseño gráfico','Publicidad (Ads)','Shopify / E-commerce','Branding','Estrategia / Consultoría','Email marketing','Automatización / IA','Web / Landing'];
+function fillServiceChecklist(selected) {
+  const box = document.getElementById('cServices'); if (!box) return;
+  const sel = selected || [];
+  box.innerHTML = SERVICIOS.map(s => `<label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" value="${esc(s)}" ${sel.includes(s)?'checked':''}> ${esc(s)}</label>`).join('');
+}
+function copyDriveLink(id) {
+  const c = getClientById(id); if (!c || !c.driveLink) return;
+  const url = c.driveLink;
+  const ok = () => alert('✓ Link de Drive copiado. Pégalo en Safari o en la app de Google Drive.');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(ok).catch(() => window.prompt('Copia el link manualmente:', url));
+  } else {
+    const t = document.createElement('textarea'); t.value = url; document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); ok(); } catch (e) { window.prompt('Copia el link manualmente:', url); }
+    document.body.removeChild(t);
+  }
+}
+
 function openNewClientModal() {
   document.getElementById('clientModalTitle').textContent = 'Nuevo Cliente';
-  ['cName','cEmail','cMRR','cDriveLink','cNotes','cIndustry'].forEach(id => document.getElementById(id).value = '');
+  ['cName','cEmail','cMRR','cDriveLink','cNotes','cIndustry','cContract','cDeposit'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('cPackage').value = 'Event Horizon';
   document.getElementById('cStatus').value = 'activo';
+  fillServiceChecklist([]);
   document.getElementById('clientModal').dataset.editId = '';
   openModal('clientModal');
 }
@@ -1641,8 +1675,11 @@ function editClient(id) {
   document.getElementById('cMRR').value = c.mrr;
   document.getElementById('cStatus').value = c.status;
   document.getElementById('cIndustry').value = c.industry||'';
+  document.getElementById('cContract').value = c.contractTerm||'';
+  document.getElementById('cDeposit').value = c.deposit||'';
   document.getElementById('cDriveLink').value = c.driveLink||'';
   document.getElementById('cNotes').value = c.notes||'';
+  fillServiceChecklist(c.services || []);
   document.getElementById('clientModal').dataset.editId = id;
   openModal('clientModal');
 }
@@ -1657,6 +1694,9 @@ function saveClient() {
     mrr: parseFloat(document.getElementById('cMRR').value)||0,
     status: document.getElementById('cStatus').value,
     industry: document.getElementById('cIndustry').value,
+    contractTerm: document.getElementById('cContract').value.trim(),
+    deposit: parseFloat(document.getElementById('cDeposit').value)||0,
+    services: [...document.querySelectorAll('#cServices input:checked')].map(c => c.value),
     driveLink: document.getElementById('cDriveLink').value,
     notes: document.getElementById('cNotes').value
   };
@@ -1728,14 +1768,31 @@ function renderProfileTab(tab) {
           <div class="text-sm">${c.package}</div>
         </div>
         <div>
-          <div class="form-label">MRR</div>
+          <div class="form-label">Mensualidad / MRR</div>
           <div class="text-sm" style="color:var(--mint);font-weight:600;">${fmt(c.mrr)}/mes</div>
+        </div>
+        <div>
+          <div class="form-label">Término de contrato</div>
+          <div class="text-sm">${c.contractTerm ? esc(c.contractTerm) : '—'}</div>
+        </div>
+        <div>
+          <div class="form-label">Pago inicial / Depósito</div>
+          <div class="text-sm">${c.deposit ? fmt(c.deposit) : '—'}</div>
         </div>
       </div>
       <div class="divider"></div>
       <div>
+        <div class="form-label mb-12">Servicios a proveer</div>
+        ${(c.services && c.services.length) ? c.services.map(s => `<span class="stat-badge badge-purple">${esc(s)}</span>`).join(' ') : '<span class="text-muted text-sm">Ninguno seleccionado</span>'}
+      </div>
+      <div class="divider"></div>
+      <div>
         <div class="form-label mb-12">📁 Google Drive</div>
-        ${c.driveLink ? `<a href="${c.driveLink}" target="_blank" class="drive-link">📁 Abrir Folder del Cliente →</a>` :
+        ${c.driveLink ?
+          `<div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
+            <a href="${c.driveLink}" target="_blank" rel="noopener" class="drive-link">📁 Abrir Folder del Cliente →</a>
+            <button class="btn btn-ghost btn-xs" onclick="copyDriveLink(${c.id})" title="Copiar link (si el botón no abre en el iPad)">⧉ Copiar link</button>
+          </div>` :
           `<div class="flex gap-8"><input type="url" id="profileDriveInput" class="form-input" placeholder="Pega el link de Drive..." value="${c.driveLink||''}">
           <button class="btn btn-mint btn-sm" onclick="saveDriveLink()">Guardar</button></div>`}
       </div>
