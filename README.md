@@ -22,7 +22,7 @@ El Observatorio es un embudo de investigación vinculado al CRM: **observación 
 
 1. **Un solo archivo** — todo vive en `GravityWave_OS.html`.
 2. **Sin dependencias externas** — solo Google Fonts (degradan solas). Las gráficas son **SVG nativo**, no Chart.js.
-3. **Presupuesto de tamaño: < 200 KB.** (Antes 150 KB; ampliado al crecer el Observatorio. Sigue siendo ligero por ser local y sin dependencias.)
+3. **Tamaño: guía blanda, ~250 KB.** No es un límite duro. El objetivo real es **no añadir dependencias pesadas**; al ser un archivo local sin dependencias, crecer con funciones legítimas está bien (carga al instante). El número solo es un recordatorio para no descuidarlo. (Actual: ~200 KB.)
 4. **Tokens de marca (CSS variables)** — no modificar sin instrucción.
 5. **Tipografía:** Syne (títulos) · Lora (cursivas) · DM Sans (cuerpo).
 6. **UI y copy en español**, tono boutique profesional.

@@ -426,6 +426,9 @@ canvas { max-width: 100%; }
     <div class="nav-item" onclick="showPage('operaciones',this)">
       <span class="icon">◈</span> Operaciones
     </div>
+    <div class="nav-item" onclick="showPage('contenido',this)">
+      <span class="icon">◱</span> Contenido
+    </div>
     <div class="nav-label">Estrategia</div>
     <div class="nav-item" onclick="showPage('marketing',this)">
       <span class="icon">◍</span> Marketing
@@ -623,6 +626,32 @@ canvas { max-width: 100%; }
         </select>
       </div>
       <div id="operacionesContent"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PLAN DE CONTENIDO
+    ═══════════════════════════════════════ -->
+    <div id="page-contenido" class="page">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">Plan de Contenido</div>
+          <div class="page-sub italic">Planifica, aprueba y programa · calendario por red</div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary btn-sm" id="contentTabPlan" onclick="setContentView('plan')">📋 Plan</button>
+          <button class="btn btn-ghost btn-sm" id="contentTabCal" onclick="setContentView('calendario')">📅 Calendario</button>
+          <button class="btn btn-mint btn-sm" onclick="openNewContent()">+ Nueva pieza</button>
+        </div>
+      </div>
+      <div class="card mb-16">
+        <div class="grid grid-4">
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Cliente</label><select id="filterContentClient" class="form-select" onchange="renderContenido()"></select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Red social</label><select id="filterContentPlatform" class="form-select" onchange="renderContenido()"></select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Estatus creativo</label><select id="filterContentStatus" class="form-select" onchange="renderContenido()"></select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Buscar</label><input type="text" id="filterContentPillar" class="form-input" placeholder="Pilar o caption..." oninput="renderContenido()"></div>
+        </div>
+      </div>
+      <div id="contentBody"></div>
     </div>
 
     <!-- ═══════════════════════════════════════
@@ -976,6 +1005,76 @@ canvas { max-width: 100%; }
   </div>
 </div>
 
+<!-- Modal: Nueva/Editar Pieza de Contenido -->
+<div class="modal-overlay" id="contentModal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <div class="modal-title" id="contentModalTitle">Nueva pieza de contenido</div>
+      <button class="modal-close" onclick="closeModal('contentModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <select id="ctClient" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Red social</label>
+          <select id="ctPlatform" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Formato</label>
+          <select id="ctFormat" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de publicación</label>
+          <input type="date" id="ctDate" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pilar de contenido</label>
+          <input type="text" id="ctPillar" class="form-input" placeholder="Ej: Educativo, Detrás de cámara...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estatus creativo</label>
+          <select id="ctStatus" class="form-select"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Caption</label>
+        <textarea id="ctCaption" class="form-textarea" placeholder="Texto del post..."></textarea>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">CTA (llamada a la acción)</label>
+          <input type="text" id="ctCta" class="form-input" placeholder="Ej: Reserva hoy, Escríbenos...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hashtags</label>
+          <input type="text" id="ctHashtags" class="form-input" placeholder="#gravitywave #pr ...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estrategia</label>
+        <textarea id="ctStrategy" class="form-textarea" placeholder="Objetivo de la pieza, a quién le habla, por qué..."></textarea>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">📁 Link Google Drive (arte/asset)</label>
+          <input type="url" id="ctDrive" class="form-input" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Análisis de rendimiento</label>
+          <input type="text" id="ctPerf" class="form-input" placeholder="Alcance, interacciones... (después de publicar)">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('contentModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveContent()">Guardar pieza</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Nuevo/Editar Patrón -->
 <div class="modal-overlay" id="patternModal">
   <div class="modal" style="max-width:640px;">
@@ -1292,6 +1391,7 @@ let state = {
   monthlyExpenses: [900, 1100, 1050, 1200, 1019, 1019],
   nextId: 4,
   reports: {},
+  content: [],   // plan de contenido / calendario de publicación
 
   // ── OBSERVATORIO / GRAVITY RESEARCH LAB ──
   // Fase 1 activa: observations + researchProjects (con UI).
@@ -1390,7 +1490,7 @@ const PAGE_TITLES = {
   ia: 'Análisis IA', tendencias: 'Tendencias', docs: 'Documentos',
   journal: 'Observation Journal', sistemas: 'Sistemas',
   patrones: 'Pattern Library', hipotesis: 'Hypothesis Register', experimentos: 'Experiment Log',
-  guia: 'Guía de uso'
+  guia: 'Guía de uso', contenido: 'Plan de Contenido'
 };
 let currentPage = 'dashboard';
 let currentProfileClientId = null;
@@ -1408,6 +1508,7 @@ function showPage(id, el) {
   else if (id === 'finanzas') renderFinanzas();
   else if (id === 'growth') renderGrowthSystem();
   else if (id === 'operaciones') renderOperaciones();
+  else if (id === 'contenido') renderContenido();
   else if (id === 'marketing') renderMarketing();
   else if (id === 'ia') renderAIPage();
   else if (id === 'tendencias') renderTendencias();
@@ -2187,6 +2288,14 @@ function updateGSGlobal(cid, key, val, el) {
 // ═══════════════════════════════════════════════════════
 //  OPERACIONES
 // ═══════════════════════════════════════════════════════
+let opsOpen = new Set();
+function toggleOpsClient(id) {
+  if (opsOpen.has(id)) opsOpen.delete(id); else opsOpen.add(id);
+  const body = document.getElementById('opsClient_' + id);
+  const caret = document.getElementById('opsCaret_' + id);
+  if (body) body.style.display = opsOpen.has(id) ? 'block' : 'none';
+  if (caret) caret.textContent = opsOpen.has(id) ? '▾' : '▸';
+}
 function renderOperaciones() {
   updateClientSelects();
   const filterId = document.getElementById('sopClientFilter').value;
@@ -2195,15 +2304,18 @@ function renderOperaciones() {
   clients.forEach(c => {
     const completed = c.sopData ? Object.values(c.sopData).filter(v => v.done).length : 0;
     const pct = Math.round(completed/SOPSteps.length*100);
+    const isOpen = opsOpen.has(c.id);
     html += `<div class="card mb-16">
-      <div class="flex-between mb-12">
-        <div class="card-title" style="margin-bottom:0">${c.name} <span class="text-xs text-muted ml-8">— ${c.package}</span></div>
+      <div class="flex-between" style="cursor:pointer;" onclick="toggleOpsClient(${c.id})">
+        <div class="card-title" style="margin-bottom:0">${esc(c.name)} <span class="text-xs text-muted ml-8">— ${esc(c.package)}</span></div>
         <div class="flex gap-8" style="align-items:center">
           <span class="text-xs text-muted">${completed}/${SOPSteps.length}</span>
           <div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:${pct}%"></div></div>
           <span class="text-xs text-accent">${pct}%</span>
+          <span id="opsCaret_${c.id}" style="color:var(--text3);font-size:12px;">${isOpen?'▾':'▸'}</span>
         </div>
       </div>
+      <div id="opsClient_${c.id}" style="display:${isOpen?'block':'none'};margin-top:12px;">
       ${SOPSteps.map((step, i) => {
         const done = c.sopData && c.sopData[i] && c.sopData[i].done;
         const notes = c.sopData && c.sopData[i] ? c.sopData[i].notes||'' : '';
@@ -2221,6 +2333,7 @@ function renderOperaciones() {
           </div>
         </div>`;
       }).join('')}
+      </div>
     </div>`;
   });
   document.getElementById('operacionesContent').innerHTML = html || '<div class="card text-muted">Sin clientes</div>';
@@ -3285,6 +3398,184 @@ function saveExperiment() {
   saveState(); closeModal('experimentModal'); renderExperiments();
 }
 function deleteExperiment(id) { if (!confirm('¿Eliminar este experimento?')) return; state.experiments = state.experiments.filter(e => e.id !== id); saveState(); renderExperiments(); }
+
+// ── PLAN DE CONTENIDO + CALENDARIO ──
+const PLATFORMS = ['Instagram', 'Facebook', 'TikTok', 'Google'];
+const CONTENT_FORMATS = ['Post', 'Reel', 'Story', 'Carrusel', 'Video', 'Google Post', 'Otro'];
+const CONTENT_STATUS = ['no iniciado', 'pendiente aprobación', 'pendiente programación', 'programado'];
+let contentView = 'plan';
+let contentMonth = null;
+
+function platMeta(pl) {
+  const m = { 'Instagram':{c:'#C13584',i:'📷'}, 'Facebook':{c:'#1877F2',i:'📘'}, 'TikTok':{c:'#111111',i:'🎵'}, 'Google':{c:'#34A853',i:'🔍'} };
+  return m[pl] || { c:'#7B5CE5', i:'•' };
+}
+function platBadge(pl) { const mt = platMeta(pl); return `<span class="stat-badge" style="background:${mt.c}22;color:var(--text);border:1px solid ${mt.c}88;">${mt.i} ${esc(pl||'')}</span>`; }
+function contentStatusBadge(s) { const m = { 'no iniciado':'badge-purple', 'pendiente aprobación':'badge-yellow', 'pendiente programación':'badge-red', 'programado':'badge-green' }; return `<span class="stat-badge ${m[s]||'badge-purple'}">${esc(s||'')}</span>`; }
+function fmtDateShort(d) { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('es-PR', { month:'short', day:'numeric' }); }
+function valOf(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+function updateContentSelects() {
+  const fc = document.getElementById('filterContentClient');
+  if (fc) { const cur = fc.value; fc.innerHTML = '<option value="">— Todos los clientes —</option>' + state.clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(''); fc.value = cur; }
+  const fp = document.getElementById('filterContentPlatform');
+  if (fp) { const cur = fp.value; fp.innerHTML = '<option value="">— Todas las redes —</option>' + PLATFORMS.map(x => `<option>${x}</option>`).join(''); fp.value = cur; }
+  const fs = document.getElementById('filterContentStatus');
+  if (fs) { const cur = fs.value; fs.innerHTML = '<option value="">— Todos los estatus —</option>' + CONTENT_STATUS.map(x => `<option>${x}</option>`).join(''); fs.value = cur; }
+}
+function getFilteredContent() {
+  const fc = valOf('filterContentClient'), fp = valOf('filterContentPlatform'), fs = valOf('filterContentStatus'), ft = (valOf('filterContentPillar')||'').toLowerCase();
+  return state.content.filter(p => {
+    if (fc && String(p.clientId) !== fc) return false;
+    if (fp && p.platform !== fp) return false;
+    if (fs && p.status !== fs) return false;
+    if (ft && !((p.pillar||'') + ' ' + (p.caption||'')).toLowerCase().includes(ft)) return false;
+    return true;
+  });
+}
+function setContentView(v) { contentView = v; renderContenido(); }
+function renderContenido() {
+  updateContentSelects();
+  const tp = document.getElementById('contentTabPlan'), tc = document.getElementById('contentTabCal');
+  if (tp && tc) {
+    tp.className = 'btn btn-sm ' + (contentView === 'plan' ? 'btn-primary' : 'btn-ghost');
+    tc.className = 'btn btn-sm ' + (contentView === 'calendario' ? 'btn-primary' : 'btn-ghost');
+  }
+  if (contentView === 'calendario') renderContentCalendar(); else renderContentPlan();
+}
+
+function renderContentPlan() {
+  const list = getFilteredContent().slice().sort((a, b) => (a.publishDate||'').localeCompare(b.publishDate||''));
+  const host = document.getElementById('contentBody');
+  if (!list.length) { host.innerHTML = '<div class="card"><div class="text-muted text-sm">Sin piezas de contenido. Crea la primera con “+ Nueva pieza”.</div></div>'; return; }
+  host.innerHTML = list.map(p => {
+    const client = p.clientId ? getClientById(p.clientId) : null;
+    return `<div class="card mb-16">
+      <div class="flex-between mb-12">
+        <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
+          ${platBadge(p.platform)}
+          ${p.format ? `<span class="text-xs text-muted">${esc(p.format)}</span>` : ''}
+          ${contentStatusBadge(p.status)}
+          ${p.publishDate ? `<span class="text-xs text-muted">📅 ${fmtDateShort(p.publishDate)}</span>` : ''}
+          ${client ? `<span class="text-xs text-muted">· ${esc(client.name)}</span>` : ''}
+        </div>
+        <div class="flex gap-8">
+          ${p.driveLink ? `<a href="${p.driveLink}" target="_blank" rel="noopener" class="btn btn-ghost btn-xs">📁 Drive</a>` : ''}
+          <button class="btn btn-ghost btn-xs" onclick="editContent(${p.id})">Editar</button>
+          <button class="btn btn-ghost btn-xs" onclick="deleteContent(${p.id})">🗑</button>
+        </div>
+      </div>
+      ${p.pillar ? `<div class="text-xs text-muted" style="margin-bottom:6px;">Pilar: <span class="stat-badge badge-purple">${esc(p.pillar)}</span></div>` : ''}
+      ${p.caption ? `<div class="text-sm" style="margin-bottom:6px;">${esc(p.caption)}</div>` : ''}
+      ${p.cta ? `<div class="text-xs" style="margin-bottom:4px;"><span class="text-muted">CTA:</span> ${esc(p.cta)}</div>` : ''}
+      ${p.hashtags ? `<div class="text-xs" style="color:var(--pl);margin-bottom:4px;">${esc(p.hashtags)}</div>` : ''}
+      ${p.strategy ? `<div class="text-xs text-muted" style="margin-bottom:4px;">Estrategia: ${esc(p.strategy)}</div>` : ''}
+      ${p.performance ? `<div class="text-xs" style="color:var(--mint);">Rendimiento: ${esc(p.performance)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function contentMonthShift(delta) {
+  if (!contentMonth) { const n = new Date(); contentMonth = { y:n.getFullYear(), m:n.getMonth() }; }
+  let m = contentMonth.m + delta, y = contentMonth.y;
+  if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+  contentMonth = { y, m }; renderContentCalendar();
+}
+function renderContentCalendar() {
+  if (!contentMonth) { const n = new Date(); contentMonth = { y:n.getFullYear(), m:n.getMonth() }; }
+  const { y, m } = contentMonth;
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const byDay = {};
+  getFilteredContent().filter(p => p.publishDate).forEach(p => {
+    const d = new Date(p.publishDate + 'T00:00:00');
+    if (d.getFullYear() === y && d.getMonth() === m) { (byDay[d.getDate()] = byDay[d.getDate()] || []).push(p); }
+  });
+  const monthName = first.toLocaleString('es-PR', { month:'long', year:'numeric' });
+  const dows = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  let cells = '';
+  for (let i = 0; i < startDow; i++) cells += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const items = byDay[d] || [];
+    cells += `<div style="border:1px solid var(--border);border-radius:8px;min-height:80px;padding:5px;">
+      <div class="text-xs text-muted" style="margin-bottom:3px;">${d}</div>
+      ${items.map(p => `<div onclick="editContent(${p.id})" title="${esc((p.caption||p.pillar||'').slice(0,70))}" style="cursor:pointer;font-size:10px;line-height:1.3;padding:2px 4px;border-radius:4px;margin-bottom:2px;background:${platMeta(p.platform).c};color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${platMeta(p.platform).i} ${esc((p.caption||p.pillar||p.format||'pieza').slice(0,16))}</div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('contentBody').innerHTML = `
+    <div class="card">
+      <div class="flex-between mb-16">
+        <button class="btn btn-ghost btn-sm" onclick="contentMonthShift(-1)">‹ Anterior</button>
+        <div class="card-title" style="margin-bottom:0;text-transform:capitalize;">${monthName}</div>
+        <button class="btn btn-ghost btn-sm" onclick="contentMonthShift(1)">Siguiente ›</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+        ${dows.map(d => `<div class="text-xs text-muted" style="text-align:center;font-weight:600;padding-bottom:4px;">${d}</div>`).join('')}
+        ${cells}
+      </div>
+      <div class="text-xs text-muted" style="margin-top:12px;">Toca una pieza para editarla. Usa el filtro de “Red social” arriba para ver solo IG, FB, TikTok o Google.</div>
+    </div>`;
+}
+
+function updateContentModalSelects() {
+  document.getElementById('ctClient').innerHTML = '<option value="">— Sin cliente —</option>' + state.clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('ctPlatform').innerHTML = PLATFORMS.map(x => `<option>${x}</option>`).join('');
+  document.getElementById('ctFormat').innerHTML = CONTENT_FORMATS.map(x => `<option>${x}</option>`).join('');
+  document.getElementById('ctStatus').innerHTML = CONTENT_STATUS.map(x => `<option>${x}</option>`).join('');
+}
+function openNewContent() {
+  updateContentModalSelects();
+  ['ctPillar','ctCaption','ctCta','ctHashtags','ctStrategy','ctDrive','ctPerf'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ctDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('ctPlatform').value = 'Instagram';
+  document.getElementById('ctFormat').value = 'Post';
+  document.getElementById('ctStatus').value = 'no iniciado';
+  document.getElementById('ctClient').value = '';
+  document.getElementById('contentModal').dataset.editId = '';
+  document.getElementById('contentModalTitle').textContent = 'Nueva pieza de contenido';
+  openModal('contentModal');
+}
+function editContent(id) {
+  const x = state.content.find(e => e.id == id); if (!x) return;
+  updateContentModalSelects();
+  document.getElementById('ctClient').value = x.clientId || '';
+  document.getElementById('ctPlatform').value = x.platform || 'Instagram';
+  document.getElementById('ctFormat').value = x.format || 'Post';
+  document.getElementById('ctDate').value = x.publishDate || '';
+  document.getElementById('ctPillar').value = x.pillar || '';
+  document.getElementById('ctStatus').value = x.status || 'no iniciado';
+  document.getElementById('ctCaption').value = x.caption || '';
+  document.getElementById('ctCta').value = x.cta || '';
+  document.getElementById('ctHashtags').value = x.hashtags || '';
+  document.getElementById('ctStrategy').value = x.strategy || '';
+  document.getElementById('ctDrive').value = x.driveLink || '';
+  document.getElementById('ctPerf').value = x.performance || '';
+  document.getElementById('contentModal').dataset.editId = id;
+  document.getElementById('contentModalTitle').textContent = 'Editar pieza de contenido';
+  openModal('contentModal');
+}
+function saveContent() {
+  const data = {
+    clientId: document.getElementById('ctClient').value ? Number(document.getElementById('ctClient').value) : null,
+    platform: document.getElementById('ctPlatform').value,
+    format: document.getElementById('ctFormat').value,
+    publishDate: document.getElementById('ctDate').value,
+    pillar: document.getElementById('ctPillar').value.trim(),
+    status: document.getElementById('ctStatus').value,
+    caption: document.getElementById('ctCaption').value.trim(),
+    cta: document.getElementById('ctCta').value.trim(),
+    hashtags: document.getElementById('ctHashtags').value.trim(),
+    strategy: document.getElementById('ctStrategy').value.trim(),
+    driveLink: document.getElementById('ctDrive').value.trim(),
+    performance: document.getElementById('ctPerf').value.trim()
+  };
+  const editId = document.getElementById('contentModal').dataset.editId;
+  if (editId) { Object.assign(state.content.find(e => e.id == Number(editId)), data); }
+  else { data.id = state.nextId++; data.createdAt = new Date().toISOString(); state.content.push(data); }
+  saveState(); closeModal('contentModal'); renderContenido();
+}
+function deleteContent(id) { if (!confirm('¿Eliminar esta pieza de contenido?')) return; state.content = state.content.filter(e => e.id !== id); saveState(); renderContenido(); }
 
 // ── GUÍA DE USO (SOP por zona) ──
 function renderGuia() {
