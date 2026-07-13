@@ -1005,6 +1005,21 @@ canvas { max-width: 100%; }
   </div>
 </div>
 
+<!-- Modal: Confirmación -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Confirmar</div>
+      <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
+    </div>
+    <div class="modal-body"><div id="confirmMessage" class="text-sm" style="white-space:pre-line;line-height:1.6;"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Cancelar</button>
+      <button class="btn btn-danger" id="confirmOkBtn" onclick="gwConfirmProceed()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Nueva/Editar Pieza de Contenido -->
 <div class="modal-overlay" id="contentModal">
   <div class="modal" style="max-width:680px;">
@@ -1524,6 +1539,20 @@ function showPage(id, el) {
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+// Confirmación propia (el confirm() nativo no funciona en algunos navegadores como el de Documents by Readdle)
+let _confirmCb = null;
+function gwConfirm(message, onConfirm, confirmLabel) {
+  _confirmCb = onConfirm;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmOkBtn').textContent = confirmLabel || 'Eliminar';
+  openModal('confirmModal');
+}
+function gwConfirmProceed() {
+  const cb = _confirmCb; _confirmCb = null;
+  closeModal('confirmModal');
+  if (typeof cb === 'function') cb();
+}
+
 // ═══════════════════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════════════════
@@ -1820,9 +1849,10 @@ function saveClient() {
 }
 
 function deleteClient(id) {
-  if (!confirm('¿Eliminar este cliente permanentemente?')) return;
-  state.clients = state.clients.filter(c => c.id !== id);
-  saveState(); renderClients();
+  gwConfirm('¿Eliminar este cliente permanentemente?', () => {
+    state.clients = state.clients.filter(c => c.id !== id);
+    saveState(); renderClients();
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2870,9 +2900,10 @@ function saveObservation() {
 }
 
 function deleteObservation(id) {
-  if (!confirm('¿Eliminar esta observación?')) return;
-  state.observations = state.observations.filter(o => o.id !== id);
-  saveState(); renderJournalList();
+  gwConfirm('¿Eliminar esta observación?', () => {
+    state.observations = state.observations.filter(o => o.id !== id);
+    saveState(); renderJournalList();
+  });
 }
 
 function obsMarkdown(o) {
@@ -2978,9 +3009,10 @@ function saveProject() {
 
 function deleteProject(id) {
   const n = getObservationsByProject(id).length;
-  if (!confirm(`¿Eliminar este sistema?${n ? ` Tiene ${n} observación(es) que quedarán huérfanas.` : ''}`)) return;
-  state.researchProjects = state.researchProjects.filter(p => p.id !== id);
-  saveState(); renderSistemas(); updateProjectSelects();
+  gwConfirm(`¿Eliminar este sistema?${n ? ` Tiene ${n} observación(es) que quedarán huérfanas.` : ''}`, () => {
+    state.researchProjects = state.researchProjects.filter(p => p.id !== id);
+    saveState(); renderSistemas(); updateProjectSelects();
+  });
 }
 
 function promoteToProspect(projectId) {
@@ -2991,22 +3023,23 @@ function promoteToProspect(projectId) {
     return;
   }
   const obsCount = getObservationsByProject(projectId).length;
-  if (!confirm(`¿Crear una ficha de PROSPECTO en Clientes a partir de "${p.name}"?\nLas ${obsCount} observación(es) quedan enlazadas como contexto de origen.`)) return;
-  const newClient = {
-    id: state.nextId++, name: p.name, email: '', package: 'Event Horizon', mrr: 0,
-    status: 'prospecto', industry: p.systemType || '', driveLink: '', isCaseStudy: false,
-    originProjectId: projectId,
-    notes: `Promovido desde el Observatorio.\nSistema: ${p.name}${p.systemType ? ` (${p.systemType})` : ''}\nObservaciones de origen: ${obsCount}\n${p.notes || ''}`.trim(),
-    activity: [{ type: 'system', text: `Prospecto creado desde Observatorio (${obsCount} observación/es de origen)`, time: new Date().toISOString() }],
-    growthScores: { presence: 10, acquisition: 5, delivery: 0, expansion: 0 },
-    sopData: {}
-  };
-  state.clients.push(newClient);
-  p.linkedClientId = newClient.id;
-  saveState();
-  updateClientSelects();
-  renderSistemas();
-  alert('✓ Prospecto creado en Clientes. Podrás categorizarlo ahí con base en lo observado.');
+  gwConfirm(`¿Crear una ficha de PROSPECTO en Clientes a partir de "${p.name}"?\nLas ${obsCount} observación(es) quedan enlazadas como contexto de origen.`, () => {
+    const newClient = {
+      id: state.nextId++, name: p.name, email: '', package: 'Event Horizon', mrr: 0,
+      status: 'prospecto', industry: p.systemType || '', driveLink: '', isCaseStudy: false,
+      originProjectId: projectId,
+      notes: `Promovido desde el Observatorio.\nSistema: ${p.name}${p.systemType ? ` (${p.systemType})` : ''}\nObservaciones de origen: ${obsCount}\n${p.notes || ''}`.trim(),
+      activity: [{ type: 'system', text: `Prospecto creado desde Observatorio (${obsCount} observación/es de origen)`, time: new Date().toISOString() }],
+      growthScores: { presence: 10, acquisition: 5, delivery: 0, expansion: 0 },
+      sopData: {}
+    };
+    state.clients.push(newClient);
+    p.linkedClientId = newClient.id;
+    saveState();
+    updateClientSelects();
+    renderSistemas();
+    alert('✓ Prospecto creado en Clientes. Podrás categorizarlo ahí con base en lo observado.');
+  }, 'Crear prospecto');
 }
 
 // Markdown-lite seguro: escapa HTML y solo permite **negrita** + saltos de línea
@@ -3262,7 +3295,7 @@ function savePattern() {
   else { data.id = state.nextId++; data.detectedAt = new Date().toISOString(); state.patterns.push(data); }
   saveState(); closeModal('patternModal'); renderPatterns();
 }
-function deletePattern(id) { if (!confirm('¿Eliminar este patrón?')) return; state.patterns = state.patterns.filter(p => p.id !== id); saveState(); renderPatterns(); }
+function deletePattern(id) { gwConfirm('¿Eliminar este patrón?', () => { state.patterns = state.patterns.filter(p => p.id !== id); saveState(); renderPatterns(); }); }
 
 // ---- Hypothesis Register ----
 function renderHypotheses() {
@@ -3346,7 +3379,7 @@ function resolveHypothesis(id, status) {
   h.status = status; h.resolvedAt = new Date().toISOString();
   saveState(); renderHypotheses();
 }
-function deleteHypothesis(id) { if (!confirm('¿Eliminar esta hipótesis?')) return; state.hypotheses = state.hypotheses.filter(h => h.id !== id); saveState(); renderHypotheses(); }
+function deleteHypothesis(id) { gwConfirm('¿Eliminar esta hipótesis?', () => { state.hypotheses = state.hypotheses.filter(h => h.id !== id); saveState(); renderHypotheses(); }); }
 
 // ---- Experiment Log ----
 function renderExperiments() {
@@ -3397,7 +3430,7 @@ function saveExperiment() {
   else { data.id = state.nextId++; state.experiments.push(data); }
   saveState(); closeModal('experimentModal'); renderExperiments();
 }
-function deleteExperiment(id) { if (!confirm('¿Eliminar este experimento?')) return; state.experiments = state.experiments.filter(e => e.id !== id); saveState(); renderExperiments(); }
+function deleteExperiment(id) { gwConfirm('¿Eliminar este experimento?', () => { state.experiments = state.experiments.filter(e => e.id !== id); saveState(); renderExperiments(); }); }
 
 // ── PLAN DE CONTENIDO + CALENDARIO ──
 const PLATFORMS = ['Instagram', 'Facebook', 'TikTok', 'Google'];
@@ -3575,7 +3608,7 @@ function saveContent() {
   else { data.id = state.nextId++; data.createdAt = new Date().toISOString(); state.content.push(data); }
   saveState(); closeModal('contentModal'); renderContenido();
 }
-function deleteContent(id) { if (!confirm('¿Eliminar esta pieza de contenido?')) return; state.content = state.content.filter(e => e.id !== id); saveState(); renderContenido(); }
+function deleteContent(id) { gwConfirm('¿Eliminar esta pieza de contenido?', () => { state.content = state.content.filter(e => e.id !== id); saveState(); renderContenido(); }); }
 
 // ── GUÍA DE USO (SOP por zona) ──
 function renderGuia() {
