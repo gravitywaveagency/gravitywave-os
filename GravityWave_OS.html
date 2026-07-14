@@ -513,6 +513,7 @@ canvas { max-width: 100%; }
           <div class="page-sub italic">Gestión completa de relaciones</div>
         </div>
         <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" id="archivedToggleBtn" onclick="toggleShowArchived()">📥 Archivados</button>
           <button class="btn btn-ghost btn-sm" onclick="renderClients()">↻ Actualizar</button>
           <button class="btn btn-primary btn-sm" onclick="openNewClientModal()">+ Nuevo Cliente</button>
         </div>
@@ -590,6 +591,16 @@ canvas { max-width: 100%; }
                 <option>Herramientas</option><option>Subcontratistas</option>
                 <option>Publicidad</option><option>Administrativo</option><option>Otro</option>
               </select>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label">Fecha de inicio</label>
+              <input type="date" id="expStart" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fecha de expiración (opcional)</label>
+              <input type="date" id="expEnd" class="form-input">
             </div>
           </div>
           <button class="btn btn-primary w-100" onclick="saveExpense()">Guardar Gasto</button>
@@ -982,6 +993,14 @@ canvas { max-width: 100%; }
         <div class="form-group">
           <label class="form-label">Pago inicial / Depósito ($)</label>
           <input type="number" id="cDeposit" class="form-input" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de inicio</label>
+          <input type="date" id="cStart" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de renovación / fin</label>
+          <input type="date" id="cEnd" class="form-input">
         </div>
       </div>
       <div class="form-group">
@@ -1572,7 +1591,7 @@ function statusBadge(s) {
   return `<span class="stat-badge ${map[s]||'badge-purple'}">${labels[s]||s}</span>`;
 }
 function statusDotClass(s) { return { activo:'status-active', onboarding:'status-onboarding', pausado:'status-paused', prospecto:'status-prospect' }[s] || 'status-prospect'; }
-function getActiveClients() { return state.clients.filter(c => c.status === 'activo'); }
+function getActiveClients() { return state.clients.filter(c => c.status === 'activo' && !c.archived); }
 function getTotalMRR() { return getActiveClients().reduce((a,c) => a+Number(c.mrr||0), 0); }
 function getTotalExpenses() { return state.expenses.reduce((a,e) => a+Number(e.amount||0), 0); }
 function getClientById(id) { return state.clients.find(c => c.id == id); }
@@ -1717,49 +1736,67 @@ function renderDashboard() {
 // ═══════════════════════════════════════════════════════
 //  CLIENTES
 // ═══════════════════════════════════════════════════════
+let showArchived = false;
+function toggleShowArchived() {
+  showArchived = !showArchived;
+  const btn = document.getElementById('archivedToggleBtn');
+  if (btn) btn.textContent = showArchived ? '👥 Ver activos' : '📥 Archivados';
+  const s = document.getElementById('clientSearch');
+  renderClients(s ? s.value : '');
+}
+function archiveClient(id) {
+  const c = getClientById(id); if (!c) return;
+  c.archived = true; addActivityToClient(id, 'system', 'Cliente archivado'); saveState(); renderClients();
+}
+function restoreClient(id) {
+  const c = getClientById(id); if (!c) return;
+  c.archived = false; addActivityToClient(id, 'system', 'Cliente restaurado a la base'); saveState(); renderClients();
+}
 function renderClients(filter='') {
-  const active = state.clients.filter(c=>c.status==='activo').length;
+  const activeCount = state.clients.filter(c => c.status==='activo' && !c.archived).length;
+  const archivedCount = state.clients.filter(c => c.archived).length;
   const mrr = getTotalMRR();
   document.getElementById('clientStats').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Total Clientes</div><div class="stat-value">${state.clients.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value">${active}</div></div>
+    <div class="stat-card"><div class="stat-label">Clientes</div><div class="stat-value">${state.clients.filter(c=>!c.archived).length}</div><div class="stat-sub">${archivedCount} archivados</div></div>
+    <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value">${activeCount}</div></div>
     <div class="stat-card"><div class="stat-label">MRR Total</div><div class="stat-value">${fmt(mrr)}</div></div>
     <div class="stat-card"><div class="stat-label">ARR Proyectado</div><div class="stat-value">${fmt(mrr*12)}</div></div>
   `;
 
   const q = filter.toLowerCase();
-  const list = filter ? state.clients.filter(c => c.name.toLowerCase().includes(q) || (c.industry||'').toLowerCase().includes(q)) : state.clients;
+  const base = state.clients.filter(c => showArchived ? c.archived : !c.archived);
+  const list = filter ? base.filter(c => c.name.toLowerCase().includes(q) || (c.industry||'').toLowerCase().includes(q)) : base;
   const rows = list.map(c => {
     const lastAct = c.activity && c.activity.length ? c.activity[0] : null;
+    const actions = c.archived
+      ? `<button class="btn btn-ghost btn-xs" onclick="openClientProfile(${c.id})">Ver</button>
+         <button class="btn btn-mint btn-xs" onclick="restoreClient(${c.id})" title="Devolver a la base de clientes">↩ Restaurar</button>
+         <button class="btn btn-danger btn-xs" onclick="deleteClient(${c.id})">✕</button>`
+      : `<button class="btn btn-ghost btn-xs" onclick="openClientProfile(${c.id})">Ver</button>
+         <button class="btn btn-mint btn-xs" onclick="openCommunicadoForClient(${c.id})">✉</button>
+         <button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">✏</button>
+         <button class="btn btn-ghost btn-xs" onclick="archiveClient(${c.id})" title="Archivar cliente">📥</button>
+         <button class="btn btn-danger btn-xs" onclick="deleteClient(${c.id})">✕</button>`;
     return `<tr>
       <td>
-        <div style="cursor:pointer;color:var(--pl);font-weight:600;" onclick="openClientProfile(${c.id})">${c.name}</div>
-        <div class="text-xs text-muted">${c.industry||''} · ${c.email||''}</div>
+        <div style="cursor:pointer;color:var(--pl);font-weight:600;" onclick="openClientProfile(${c.id})">${esc(c.name)}</div>
+        <div class="text-xs text-muted">${esc(c.industry||'')}${c.email ? ' · ' + esc(c.email) : ''}</div>
       </td>
-      <td><span class="stat-badge badge-purple">${c.package}</span></td>
+      <td><span class="stat-badge badge-purple">${esc(c.package)}</span></td>
       <td>${statusBadge(c.status)}</td>
       <td style="color:var(--mint);font-weight:600;">${fmt(c.mrr)}</td>
-      <td>${lastAct ? `<div class="text-sm">${lastAct.text}</div><div class="text-xs text-muted">${timeAgo(lastAct.time)}</div>` : '<span class="text-muted text-xs">—</span>'}</td>
+      <td>${lastAct ? `<div class="text-sm">${esc(lastAct.text)}</div><div class="text-xs text-muted">${timeAgo(lastAct.time)}</div>` : '<span class="text-muted text-xs">—</span>'}</td>
       <td>${c.driveLink ? `<a href="${c.driveLink}" target="_blank" rel="noopener" class="drive-link">📁 Drive</a> <button class="btn btn-ghost btn-xs" onclick="copyDriveLink(${c.id})" title="Copiar link">⧉</button>` : '<span class="text-muted text-xs">No enlazado</span>'}</td>
-      <td>
-        <div class="flex gap-8">
-          <button class="btn btn-ghost btn-xs" onclick="openClientProfile(${c.id})">Ver</button>
-          <button class="btn btn-mint btn-xs" onclick="openCommunicadoForClient(${c.id})">✉</button>
-          <button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">✏</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteClient(${c.id})">✕</button>
-        </div>
-      </td>
+      <td><div class="flex gap-8" style="flex-wrap:wrap;">${actions}</div></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sin clientes — agrega el primero</td></tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">${showArchived ? 'No hay clientes archivados' : 'Sin clientes — agrega el primero'}</td></tr>`;
   document.getElementById('clientsTbody').innerHTML = rows;
-
-  // Update SOP and report client selects
   updateClientSelects();
 }
 function filterClients(v) { renderClients(v); }
 
 function updateClientSelects() {
-  const opts = state.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const opts = state.clients.filter(c => !c.archived).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const sopSel = document.getElementById('sopClientFilter');
   if (sopSel) sopSel.innerHTML = '<option value="">— Vista General —</option>' + opts;
   const rptSel = document.getElementById('reportClientSelect');
@@ -1787,7 +1824,7 @@ function copyDriveLink(id) {
 
 function openNewClientModal() {
   document.getElementById('clientModalTitle').textContent = 'Nuevo Cliente';
-  ['cName','cEmail','cMRR','cDriveLink','cNotes','cIndustry','cContract','cDeposit'].forEach(id => document.getElementById(id).value = '');
+  ['cName','cEmail','cMRR','cDriveLink','cNotes','cIndustry','cContract','cDeposit','cStart','cEnd'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('cPackage').value = 'Event Horizon';
   document.getElementById('cStatus').value = 'activo';
   fillServiceChecklist([]);
@@ -1807,6 +1844,8 @@ function editClient(id) {
   document.getElementById('cIndustry').value = c.industry||'';
   document.getElementById('cContract').value = c.contractTerm||'';
   document.getElementById('cDeposit').value = c.deposit||'';
+  document.getElementById('cStart').value = c.startDate||'';
+  document.getElementById('cEnd').value = c.endDate||'';
   document.getElementById('cDriveLink').value = c.driveLink||'';
   document.getElementById('cNotes').value = c.notes||'';
   fillServiceChecklist(c.services || []);
@@ -1826,6 +1865,8 @@ function saveClient() {
     industry: document.getElementById('cIndustry').value,
     contractTerm: document.getElementById('cContract').value.trim(),
     deposit: parseFloat(document.getElementById('cDeposit').value)||0,
+    startDate: document.getElementById('cStart').value,
+    endDate: document.getElementById('cEnd').value,
     services: [...document.querySelectorAll('#cServices input:checked')].map(c => c.value),
     driveLink: document.getElementById('cDriveLink').value,
     notes: document.getElementById('cNotes').value
@@ -1909,6 +1950,14 @@ function renderProfileTab(tab) {
         <div>
           <div class="form-label">Pago inicial / Depósito</div>
           <div class="text-sm">${c.deposit ? fmt(c.deposit) : '—'}</div>
+        </div>
+        <div>
+          <div class="form-label">Fecha de inicio</div>
+          <div class="text-sm">${c.startDate ? fmtDateShort(c.startDate) : '—'}</div>
+        </div>
+        <div>
+          <div class="form-label">Renovación / fin</div>
+          <div class="text-sm">${c.endDate ? fmtDateShort(c.endDate) : '—'}</div>
         </div>
       </div>
       <div class="divider"></div>
@@ -2246,7 +2295,7 @@ function renderFinanzas() {
   // Expenses list
   const expList = state.expenses.slice(-8).reverse().map(e =>
     `<div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);">
-      <div><div class="text-sm">${e.desc}</div><div class="text-xs text-muted">${e.category}</div></div>
+      <div><div class="text-sm">${esc(e.desc)}</div><div class="text-xs text-muted">${esc(e.category)}${e.startDate?` · ${fmtDateShort(e.startDate)}`:''}${e.endDate?` → ${fmtDateShort(e.endDate)}`:''}</div></div>
       <div style="color:var(--coral);font-weight:600;">${fmt(e.amount)}</div>
     </div>`
   ).join('') || '<div class="text-muted text-sm">Sin gastos registrados</div>';
@@ -2258,9 +2307,10 @@ function saveExpense() {
   const amount = parseFloat(document.getElementById('expAmount').value);
   const cat = document.getElementById('expCat').value;
   if (!desc || !amount) { alert('Completa descripción y monto'); return; }
-  state.expenses.push({ id: Date.now(), desc, amount, category: cat, date: new Date().toISOString().split('T')[0] });
-  document.getElementById('expDesc').value = '';
-  document.getElementById('expAmount').value = '';
+  const startDate = document.getElementById('expStart').value || new Date().toISOString().split('T')[0];
+  const endDate = document.getElementById('expEnd').value || '';
+  state.expenses.push({ id: Date.now(), desc, amount, category: cat, date: startDate, startDate, endDate });
+  ['expDesc','expAmount','expStart','expEnd'].forEach(id => document.getElementById(id).value = '');
   saveState();
   renderFinanzas();
 }
